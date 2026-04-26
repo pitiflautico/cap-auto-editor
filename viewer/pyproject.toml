@@ -1,0 +1,35 @@
+[project]
+name = "viewer"
+version = "0.1.0"
+description = "Web viewer for myavatar v6 runs — navigate polish/analysis/broll outputs"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel Pérez Pinazo", email = "pitiflautico3@gmail.com"},
+]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "jinja2",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "httpx",
+]
+
+[project.scripts]
+viewer = "viewer.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

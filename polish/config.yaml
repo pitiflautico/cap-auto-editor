@@ -1,0 +1,73 @@
+# Phase 0 polish/ — default thresholds.
+# Source of truth: INTERFACE.md (v1.0 FROZEN).
+# Every numeric lives here; no magic numbers in code.
+
+silence:
+  min_duration_s: 0.4          # silences shorter are ignored
+  threshold_db: -30            # dB below peak considered silence
+  detector_version: "1.0.0"
+
+filler:
+  language: es
+  words:
+    - "eh"
+    - "um"
+    - "este"
+    - "osea"
+    - "o sea"
+    - "pues"
+    - "vale"
+    - "como que"
+    - "tipo"
+    - "sabes"
+    - "digamos"
+  detector_version: "1.0.0"
+
+noisy_pause:
+  no_speech_prob_threshold: 0.6
+  min_duration_s: 0.5
+  detector_version: "1.0.0"
+
+retake:
+  ngram_min: 4
+  ngram_max: 8
+  fuzzy_ratio_min: 0.80
+  gap_max_s: 12.0
+  markers:
+    - "espera"
+    - "perdón"
+    - "perdon"
+    - "repito"
+    - "otra vez"
+    - "no a ver"
+    - "así no"
+    - "asi no"
+    - "corto"
+    - "vamos de nuevo"
+    - "no espera"
+    - "empiezo otra vez"
+  llm_assist: false            # off by default; enable via --llm-retakes
+  detector_version: "1.0.0"
+
+padding:
+  default_before_s: 0.12
+  default_after_s: 0.12
+  min_remaining_pause_s: 0.15  # air kept between utterances after cuts
+
+join:
+  strategy: "hard_cut"         # hard_cut | micro_fade | crossfade
+  crossfade_duration_s: 0.0    # only used if strategy != hard_cut
+
+transcribe:
+  model: "large-v3"
+  language: "es"
+  word_timestamps: true
+
+entity_resolution:
+  mode: "confirm"              # auto | confirm | strict
+  auto_accept_threshold: 0.85
+  model: "gemini-2.5-flash"
+
+sources:
+  fetch_timeout_s: 3.0
+  max_initial_prompt_tokens: 224

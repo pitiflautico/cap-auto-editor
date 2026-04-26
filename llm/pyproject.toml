@@ -1,0 +1,31 @@
+[project]
+name = "llm"
+version = "1.0.0"
+description = "Shared LLM provider package for myavatar v6 phases"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel Pérez Pinazo", email = "pitiflautico3@gmail.com"},
+]
+dependencies = [
+    "pydantic>=2.0",
+    "claude-code-sdk",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

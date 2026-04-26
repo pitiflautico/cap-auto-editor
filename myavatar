@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# myavatar — single entry point that orchestrates the whole pipeline.
+#
+# Delegates to v6/pipeline/.venv/bin/pipeline. New phases (capture-media,
+# broll_resolver, render, …) are picked up automatically once registered in
+# pipeline.descriptors — no change here.
+#
+# Usage:
+#   ./myavatar produce <video> [--sources urls.txt] [--name NAME]
+#   ./myavatar list
+#   ./myavatar show <run-name>
+#   ./myavatar override <run-name> <override.json>
+#
+# Env:
+#   MYAVATAR_RUNS — where run dirs live. Default: ~/myavatar/runs
+set -euo pipefail
+
+V6="$(cd "$(dirname "$0")" && pwd)"
+PIPELINE="$V6/pipeline/.venv/bin/pipeline"
+
+if [[ ! -x "$PIPELINE" ]]; then
+    echo "myavatar: pipeline binary not found at $PIPELINE" >&2
+    echo "myavatar: run 'pip install -e v6/pipeline' inside its venv first" >&2
+    exit 1
+fi
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+    produce)
+        if [[ $# -lt 1 ]]; then
+            echo "usage: myavatar produce <video> [--sources urls.txt] [--name NAME] [--phases p1,p2,...]" >&2
+            exit 2
+        fi
+        video="$1"; shift
+        exec "$PIPELINE" run --video "$video" "$@"
+        ;;
+    override)
+        # Re-run analysis with a validation-override on an existing run.
+        # Surface area is minimal today; expanded once override CLI plumbing is
+        # wired into pipeline run itself.
+        if [[ $# -lt 2 ]]; then
+            echo "usage: myavatar override <run-name> <override.json>" >&2
+            exit 2
+        fi
+        run_name="$1"; override="$2"
+        out_root="${MYAVATAR_RUNS:-$HOME/myavatar/runs}"
+        run_dir="$out_root/$run_name"
+        if [[ ! -d "$run_dir" ]]; then
+            echo "myavatar: run dir not found: $run_dir" >&2
+            exit 1
+        fi
+        ANALYSIS="$V6/analysis/.venv/bin/analysis"
+        exec "$ANALYSIS" run \
+            --transcript "$run_dir/polish/transcript_polished.json" \
+            --capture-manifest "$run_dir/capture/capture_manifest.json" \
+            --out-dir "$run_dir/analysis" \
+            --validation-override "$override"
+        ;;
+    list)
+        exec "$PIPELINE" list "$@"
+        ;;
+    show)
+        exec "$PIPELINE" show "$@"
+        ;;
+    help|-h|--help|"")
+        cat <<EOF
+myavatar — single entry point for the v6 video pipeline
+
+Commands:
+  produce <video> [--sources urls.txt] [--name NAME] [--phases p1,p2,...]
+                   Run the full pipeline (capture → polish → analysis → …) on a video.
+  override <run-name> <override.json>
+                   Re-run analysis with a human-validated override file
+                   to unblock numeric_conflict gates.
+  list             List runs under \$MYAVATAR_RUNS (~/myavatar/runs by default).
+  show <run-name>  Show orchestrator log + artifact tree for a run.
+
+Env:
+  MYAVATAR_RUNS    Override the run-dir root.
+
+Examples:
+  ./myavatar produce ~/Downloads/my_clip.mp4
+  ./myavatar produce my_clip.mp4 --sources ~/Documents/urls.txt --name gemma_demo
+  ./myavatar override gemma_demo overrides.json
+EOF
+        ;;
+    *)
+        echo "myavatar: unknown command '$cmd' (try 'myavatar help')" >&2
+        exit 2
+        ;;
+esac

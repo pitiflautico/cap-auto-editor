@@ -1,0 +1,40 @@
+# v6/capture/ default config. CLI overrides win.
+backend_default: browser_sdk  # browser_sdk | mcp_stdio | claude_orchestrated | auto
+
+viewport:
+  width: 1280
+  height: 1600
+
+timeouts_s:
+  head_precheck: 4.0
+  page_load: 10.0
+  text_extract: 5.0
+
+retry:
+  timeout: {max_attempts: 2, backoff_s: 2.0}
+  cloudflare_challenge: {max_attempts: 3, backoff_s: 5.0}
+  chrome_launch_failed: {max_attempts: 2, backoff_s: 2.0}
+  http_4xx: {max_attempts: 0, backoff_s: 0.0}
+  http_5xx: {max_attempts: 2, backoff_s: 3.0}
+  unknown: {max_attempts: 1, backoff_s: 2.0}
+
+browser_profile: default  # usa ~/.neorender/profiles/<profile>/
+save_raw_html: false
+
+# Query params stripped from URL before hashing/caching.
+# Keep this list conservative — anything functional (thread ids, page
+# numbers) must stay.
+tracking_params:
+  - utm_source
+  - utm_medium
+  - utm_campaign
+  - utm_term
+  - utm_content
+  - ref
+  - ref_source
+  - ref_src
+  - igshid
+  - fbclid
+  - gclid
+  - mc_cid
+  - mc_eid

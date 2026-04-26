@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}{{ pipeline.name }} — pipeline — myavatar v6{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="/" class="text-sm text-slate-500 hover:text-slate-700">← pipelines</a>
+  <h1 class="text-2xl font-semibold mono mt-1">{{ pipeline.name }}</h1>
+  {% if pipeline.created_at %}
+    <div class="text-xs text-slate-400 mono">started {{ pipeline.created_at[:19] }}</div>
+  {% endif %}
+</div>
+
+{# ── Live status strip (HTMX polling) ─────────────────────────── #}
+{% set any_live = pipeline.phases | selectattr("live") | list | length > 0 %}
+{% set all_done = pipeline.phases | rejectattr("done") | list | length == 0 %}
+<div id="pipeline-status-strip"
+     class="rounded border border-slate-200 bg-white px-4 py-3 mb-6 flex items-center gap-3 flex-wrap"
+     {% if not all_done %}
+       hx-get="/pipeline/{{ pipeline.name }}/progress"
+       hx-trigger="load, every 2s"
+       hx-swap="innerHTML"
+     {% endif %}>
+  {% for ph in pipeline.phases %}
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-xs
+      {% if ph.live %}text-blue-700{% elif ph.done and not ph.failed %}text-green-700
+      {% elif ph.failed %}text-red-600{% else %}text-slate-400{% endif %}">
+      <span class="font-medium">{{ ph.name }}</span>
+      <span>{% if ph.live %}● {{ ph.live_status }}{% elif ph.done %}{{ ph.live_status }}{% elif ph.failed %}failed{% else %}not started{% endif %}</span>
+    </span>
+  {% endfor %}
+</div>
+
+{# ── Per-phase sections ────────────────────────────────────────── #}
+{% for ph in pipeline.phases %}
+  <div class="mb-8">
+    {# Phase header #}
+    <div class="flex items-center gap-3 mb-3">
+      <h2 class="text-lg font-semibold">Phase: <span class="mono">{{ ph.name }}</span></h2>
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+        {% if ph.live %}bg-blue-100 text-blue-800
+        {% elif ph.done and not ph.failed %}bg-green-100 text-green-800
+        {% elif ph.failed %}bg-red-100 text-red-700
+        {% else %}bg-slate-100 text-slate-500{% endif %}">
+        {% if ph.live %}● {{ ph.live_status }}
+        {% elif ph.done and not ph.failed %}{{ ph.live_status }}
+        {% elif ph.failed %}failed
+        {% else %}not started{% endif %}
+      </span>
+      {% if ph.steps %}
+        <span class="text-xs text-slate-400">{{ ph.steps | selectattr("status", "equalto", "done") | list | length }}/{{ ph.steps | length }} steps</span>
+      {% endif %}
+      <span class="text-xs text-slate-400 mono">{{ ph.elapsed }}</span>
+    </div>
+
+    {# Step list #}
+    {% if ph.steps %}
+    <div class="rounded border border-slate-200 bg-white overflow-hidden mb-4">
+      <table class="w-full text-sm">
+        <tbody class="divide-y divide-slate-100">
+          {% for step in ph.steps %}
+          <tr class="{% if step.status == 'active' %}bg-blue-50{% elif step.status == 'pending' %}bg-slate-50{% endif %}">
+            <td class="px-3 py-2 text-xs text-slate-400 mono w-8">{{ step.idx }}</td>
+            <td class="px-3 py-2 mono text-sm
+              {% if step.status == 'done' %}text-slate-700
+              {% elif step.status == 'active' %}text-blue-700 font-medium animate-pulse
+              {% else %}text-slate-400{% endif %}">
+              {% if step.status == 'done' %}✓{% elif step.status == 'active' %}●{% else %}○{% endif %}
+              {{ step.name }}
+            </td>
+            <td class="px-3 py-2 text-xs text-slate-500 max-w-sm truncate">
+              {% if step.status == 'done' and step.summary_str %}
+                {{ step.summary_str }}
+              {% elif step.status == 'active' and step.detail %}
+                <span class="text-blue-600">{{ step.detail }}</span>
+              {% elif step.status == 'done' and step.detail %}
+                {{ step.detail }}
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-xs text-slate-400 mono text-right whitespace-nowrap">
+              {% if step.status == 'done' and step.duration_ms is defined and step.duration_ms %}
+                {{ (step.duration_ms / 1000)|round(1) }}s
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# v3.0: Generic artifact rendering from pipeline_manifest.json #}
+    {% if ph.artifacts %}
+      {% for art in ph.artifacts %}
+        <details open class="rounded border border-slate-200 bg-white mb-3">
+          <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+            {{ art.title }}
+          </summary>
+          <div class="px-4 pb-3">
+
+            {# transcript #}
+            {% if art.type == 'transcript' %}
+              {% if art.data %}
+                <div class="mt-3 space-y-1 max-h-48 overflow-y-auto">
+                  {% for seg in art.data.get('segments', [])[:30] %}
+                    <div class="flex gap-3 text-sm">
+                      <span class="mono text-xs text-slate-400 whitespace-nowrap pt-0.5">
+                        {{ (seg.start_s | default(0) / 60) | int }}:{{ '%02d' % ((seg.start_s | default(0)) | int % 60) }}
+                      </span>
+                      <span class="text-slate-700">{{ seg.text }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="text-slate-400 text-sm italic">(not available yet)</span>
+              {% endif %}
+
+            {# json_table #}
+            {% elif art.type == 'json_table' %}
+              {% if art.rows is not none %}
+                {% if art.rows %}
+                  <table class="w-full text-xs mt-3">
+                    <thead>
+                      <tr class="text-left text-slate-500 border-b border-slate-100">
+                        {% for col in art.columns %}
+                          <th class="pb-1 pr-3">{{ col.label }}</th>
+                        {% endfor %}
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                      {% for row in art.rows %}
+                        <tr>
+                          {% for col in art.columns %}
+                            {% set val = row.get(col.field) %}
+                            <td class="py-1 pr-3 {% if col.mono %}mono{% endif %}">
+                              {% if val is none %}
+                                <span class="text-slate-300">—</span>
+                              {% elif col.badge %}
+                                <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{{ val }}</span>
+                              {% elif col.format == 'ms_to_s' and val is number %}
+                                {{ (val / 1000)|round(1) }}s
+                              {% elif col.format == 'percent' and val is number %}
+                                {{ (val * 100)|round(0)|int }}%
+                              {% elif col.truncate and val %}
+                                <span title="{{ val }}">{{ val[:col.truncate] }}{% if val|length > col.truncate %}…{% endif %}</span>
+                              {% else %}
+                                {{ val }}
+                              {% endif %}
+                            </td>
+                          {% endfor %}
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <div class="mt-3 text-sm text-slate-400 italic">no rows</div>
+                {% endif %}
+              {% else %}
+                <span class="text-slate-400 text-sm italic">(not available yet)</span>
+              {% endif %}
+
+            {# image_gallery #}
+            {% elif art.type == 'image_gallery' %}
+              {% if art.images %}
+                <div class="flex flex-wrap gap-3 mt-3">
+                  {% for img_path in art.images[:20] %}
+                    {% set slug = img_path.parent.name %}
+                    <div>
+                      <img src="/pipeline/{{ pipeline.name }}/{{ ph.name }}/screenshot/{{ slug }}"
+                           alt="{{ slug }}"
+                           class="h-16 w-24 object-cover rounded border border-slate-200 cursor-pointer"
+                           loading="lazy"
+                           onclick="window.open(this.src,'_blank')">
+                      <div class="mono text-xs text-slate-500 mt-0.5 max-w-24 truncate" title="{{ slug }}">{{ slug }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="text-slate-400 text-sm italic">(not available yet)</span>
+              {% endif %}
+
+            {# text_preview #}
+            {% elif art.type == 'text_preview' %}
+              {% if art.text %}
+                <pre class="mt-3 text-xs text-slate-700 bg-slate-50 rounded p-3 whitespace-pre-wrap max-h-32 overflow-y-auto">{{ art.text }}</pre>
+              {% else %}
+                <span class="text-slate-400 text-sm italic">(not available yet)</span>
+              {% endif %}
+
+            {# key_value #}
+            {% elif art.type == 'key_value' %}
+              {% if art.kv_items %}
+                <dl class="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                  {% for item in art.kv_items %}
+                    <dt class="text-slate-500">{{ item.label }}</dt>
+                    <dd class="font-medium mono text-slate-800">
+                      {% if item.value is none %}
+                        <span class="text-slate-300">—</span>
+                      {% else %}
+                        {{ item.value }}
+                      {% endif %}
+                    </dd>
+                  {% endfor %}
+                </dl>
+              {% else %}
+                <span class="text-slate-400 text-sm italic">(not available yet)</span>
+              {% endif %}
+
+            {# iframe #}
+            {% elif art.type == 'iframe' %}
+              <div class="mt-3 text-sm text-slate-400 italic">(iframe not yet supported)</div>
+
+            {% else %}
+              <span class="text-slate-400 text-sm italic">(unknown artifact type: {{ art.type }})</span>
+            {% endif %}
+
+          </div>
+        </details>
+      {% endfor %}
+
+    {# Legacy fallback: no pipeline_manifest — render old hardcoded previews #}
+    {% else %}
+      {% set preview = ph.preview %}
+      {% if ph.name == 'capture' %}
+        {% if preview.capture_results %}
+          <details open class="rounded border border-slate-200 bg-white mb-3">
+            <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+              Captured URLs ({{ preview.capture_results | length }})
+            </summary>
+            <div class="px-4 pb-3">
+              <div class="flex flex-wrap gap-3 mt-3">
+                {% for r in preview.capture_results[:12] %}
+                  <div class="text-xs">
+                    {% set slug = r.request.slug if r.request is defined else '' %}
+                    {% if r.artifacts is defined and r.artifacts and r.artifacts.screenshot_path %}
+                      <img src="/pipeline/{{ pipeline.name }}/{{ ph.name }}/screenshot/{{ slug }}"
+                           alt="{{ slug }}"
+                           class="h-12 w-20 object-cover rounded border border-slate-200 block mb-1 cursor-pointer"
+                           loading="lazy"
+                           onclick="window.open('/pipeline/{{ pipeline.name }}/{{ ph.name }}/screenshot/{{ slug }}','_blank')">
+                    {% endif %}
+                    <a href="{{ r.request.url if r.request is defined else '#' }}" target="_blank"
+                       class="text-blue-600 hover:underline mono block max-w-xs truncate"
+                       title="{{ r.request.url if r.request is defined else '' }}">
+                      {{ r.request.url if r.request is defined else slug }}
+                    </a>
+                    <span class="{% if r.status == 'ok' %}text-green-600{% elif r.status == 'failed' %}text-red-500{% else %}text-slate-400{% endif %}">
+                      {{ r.status }}
+                    </span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </details>
+        {% else %}
+          <div class="text-sm text-slate-400 italic mb-3">capture data not yet available</div>
+        {% endif %}
+
+      {% elif ph.name == 'polish' %}
+        <details open class="rounded border border-slate-200 bg-white mb-3">
+          <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+            Transcript{% if preview.transcript_source %} ({{ preview.transcript_source }}){% endif %}
+          </summary>
+          <div class="px-4 pb-4">
+            {% if preview.transcript_segments %}
+              <div class="mt-3 space-y-1 max-h-48 overflow-y-auto">
+                {% for seg in preview.transcript_segments %}
+                  <div class="flex gap-3 text-sm">
+                    <span class="mono text-xs text-slate-400 whitespace-nowrap pt-0.5">
+                      {{ (seg.start_s | default(0) / 60) | int }}:{{ '%02d' % ((seg.start_s | default(0)) | int % 60) }}
+                    </span>
+                    <span class="text-slate-700">{{ seg.text }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="mt-3 text-sm text-slate-400 italic">transcript not ready</div>
+            {% endif %}
+          </div>
+        </details>
+
+        <details class="rounded border border-slate-200 bg-white mb-3">
+          <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+            Applied corrections ({{ (preview.patches or []) | length }})
+          </summary>
+          <div class="px-4 pb-3">
+            {% if preview.patches %}
+              <table class="w-full text-xs mt-3">
+                <thead>
+                  <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="pb-1 pr-3">surface_form → canonical</th>
+                    <th class="pb-1 pr-3">layer</th>
+                    <th class="pb-1 pr-3">occurrences</th>
+                    <th class="pb-1">confidence</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  {% for patch in preview.patches %}
+                  <tr>
+                    <td class="py-1 pr-3 mono">{{ patch.surface_form }} → {{ patch.canonical }}</td>
+                    <td class="py-1 pr-3">
+                      <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">{{ patch.layer }}</span>
+                    </td>
+                    <td class="py-1 pr-3 text-slate-600">{{ patch.occurrences }}</td>
+                    <td class="py-1 text-slate-500">{{ patch.confidence }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <div class="mt-3 text-sm text-slate-400 italic">no corrections applied</div>
+            {% endif %}
+          </div>
+        </details>
+
+        <details class="rounded border border-slate-200 bg-white mb-3">
+          <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+            Entity candidates ({{ (preview.entity_candidates or []) | length }})
+          </summary>
+          <div class="px-4 pb-3">
+            {% if preview.entity_candidates %}
+              <table class="w-full text-xs mt-3">
+                <thead>
+                  <tr class="text-left text-slate-500 border-b border-slate-100">
+                    <th class="pb-1 pr-3">surface_form</th>
+                    <th class="pb-1 pr-3">occurrences</th>
+                    <th class="pb-1 pr-3">first_time</th>
+                    <th class="pb-1">evidence</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  {% for cand in preview.entity_candidates %}
+                  {% set first_s = cand.first_time_s | default(0) | float %}
+                  <tr>
+                    <td class="py-1 pr-3 mono font-medium text-slate-700">{{ cand.surface_form }}</td>
+                    <td class="py-1 pr-3 text-slate-600">{{ cand.occurrences }}</td>
+                    <td class="py-1 pr-3 mono text-slate-500">
+                      {{ (first_s / 60) | int }}:{{ '%02d' % (first_s | int % 60) }}
+                    </td>
+                    <td class="py-1 flex flex-wrap gap-1">
+                      {% for ev in (cand.evidence or [])[:3] %}
+                        <span class="px-1 py-0.5 rounded bg-slate-100 text-slate-500">{{ ev }}</span>
+                      {% endfor %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <div class="mt-3 text-sm text-slate-400 italic">no pending candidates</div>
+            {% endif %}
+          </div>
+        </details>
+
+      {% else %}
+        {% if preview.file_list %}
+          <details class="rounded border border-slate-200 bg-white mb-3">
+            <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+              Files ({{ preview.file_list | length }})
+            </summary>
+            <div class="px-4 pb-3">
+              <ul class="mt-2 space-y-0.5">
+                {% for f in preview.file_list %}
+                  <li class="mono text-xs text-slate-600">{{ f }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </details>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}myavatar v6 viewer{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <style>
+    /* Timeline segment colouring by reason */
+    .cut-silence      { background-color: #94a3b8; }  /* slate-400 */
+    .cut-filler       { background-color: #fb923c; }  /* orange-400 */
+    .cut-noisy_pause  { background-color: #facc15; }  /* yellow-400 */
+    .cut-retake       { background-color: #f87171; }  /* red-400 */
+    .cut-false_start  { background-color: #fb7185; }  /* rose-400 */
+    .cut-manual       { background-color: #a78bfa; }  /* violet-400 */
+    .cut-merged       { background-color: #64748b; }  /* slate-500 */
+    .mono             { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-900">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="/" class="text-lg font-semibold tracking-tight">myavatar v6 · viewer</a>
+      <nav class="flex items-center gap-4 text-sm">
+        <a href="/" class="text-slate-600 hover:text-slate-900 transition font-medium">Pipelines</a>
+        <a href="/capture" class="text-slate-400 hover:text-slate-600 transition text-xs">Capture</a>
+      </nav>
+    </div>
+  </header>
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,116 @@
+# Universal text normalisation rules — NEVER domain-specific.
+#
+# Rules here must hold for any Spanish transcript regardless of topic.
+# No brand names, no product names, no acronyms of specific entities.
+# Only punctuation, whitespace, quotes, dashes — things that are
+# objectively "the same text" just with different formatting.
+#
+# Every rule has:
+#   from          : literal substring to match (no regex unless `is_regex: true`)
+#   to            : replacement
+#   type          : punctuation | whitespace | quotes | dash | typo
+#   scope         : segment_text | word_text | both  (default: segment_text)
+#   auto_apply    : true | false  (default: true)
+#   is_regex      : default false
+#   notes         : optional human note
+
+language: es
+
+rules:
+  # ── Whitespace ────────────────────────────────────────────────
+  - from: "  "
+    to: " "
+    type: "whitespace"
+    auto_apply: true
+    notes: "collapse double space"
+
+  - from: " \n"
+    to: "\n"
+    type: "whitespace"
+    auto_apply: true
+
+  - from: "\n "
+    to: "\n"
+    type: "whitespace"
+    auto_apply: true
+
+  # ── Punctuation spacing ───────────────────────────────────────
+  - from: " ,"
+    to: ","
+    type: "punctuation"
+    auto_apply: true
+
+  - from: " ."
+    to: "."
+    type: "punctuation"
+    auto_apply: true
+
+  - from: " ;"
+    to: ";"
+    type: "punctuation"
+    auto_apply: true
+
+  - from: " :"
+    to: ":"
+    type: "punctuation"
+    auto_apply: true
+
+  - from: " ?"
+    to: "?"
+    type: "punctuation"
+    auto_apply: true
+
+  - from: " !"
+    to: "!"
+    type: "punctuation"
+    auto_apply: true
+
+  - from: "¿ "
+    to: "¿"
+    type: "punctuation"
+    auto_apply: true
+
+  - from: "¡ "
+    to: "¡"
+    type: "punctuation"
+    auto_apply: true
+
+  # Ellipsis variants to canonical U+2026
+  - from: "..."
+    to: "…"
+    type: "punctuation"
+    auto_apply: true
+
+  # ── Quotes ────────────────────────────────────────────────────
+  # Straight quotes → typographic (Spanish convention)
+  - from: '"'
+    to: "\""
+    type: "quotes"
+    auto_apply: false
+    notes: "leave straight quotes — UI-level concern, may change"
+
+  # ── Dashes ────────────────────────────────────────────────────
+  # A stray " - " (spaced hyphen) in a number range or aside: no universal
+  # answer. Left as-is. If a project cares, it goes in project_aliases.
+
+  # ── Duplicated punctuation ────────────────────────────────────
+  - from: ",,"
+    to: ","
+    type: "punctuation"
+    auto_apply: true
+
+  - from: ".."
+    to: "."
+    type: "punctuation"
+    auto_apply: true
+    notes: "only runs after '...' → '…' so '..' here is accidental"
+
+  - from: "!!"
+    to: "!"
+    type: "punctuation"
+    auto_apply: true
+
+  - from: "??"
+    to: "?"
+    type: "punctuation"
+    auto_apply: true

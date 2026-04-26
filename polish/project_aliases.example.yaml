@@ -1,0 +1,30 @@
+# project_aliases.yaml — per-project substitutions (optional).
+#
+# This file is how a user tells polish/ "in MY videos, when Whisper
+# writes X it means Y". Ship this ONLY if you have recurring entities
+# that Whisper consistently misspells in your content.
+#
+# Use `type: "entity"` for brand/product fixes and `type: "typo"` for
+# common phonetic mishearings. Default `auto_apply` is false — turn
+# to true when you are sure.
+#
+# polish/ never reads this unless the user passes --project-aliases.
+
+aliases:
+  # Example from a tech/AI channel:
+  - from: "Cloud Code"
+    to: "Claude Code"
+    type: "entity"
+    auto_apply: false
+    notes: "Whisper confuses Claude/Cloud in Spanish audio"
+
+  - from: "GPT 5.5"
+    to: "GPT-5.5"
+    type: "entity"
+    auto_apply: true
+
+  - from: "SONNET"
+    to: "Sonnet"
+    type: "entity"
+    auto_apply: true
+    notes: "Whisper sometimes all-caps model names on emphasis"

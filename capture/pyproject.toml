@@ -1,0 +1,41 @@
+[project]
+name = "capture"
+version = "0.1.0"
+description = "Phase -1 of myavatar v6 — capture source URLs (manifest + text + screenshot + metadata)"
+readme = "INTERFACE.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel Pérez Pinazo", email = "pitiflautico3@gmail.com"},
+]
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+backends = [
+    "httpx",
+    "selectolax",
+    "pillow",
+    "websockets",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff",
+    "mypy",
+]
+
+[project.scripts]
+capture = "capture.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

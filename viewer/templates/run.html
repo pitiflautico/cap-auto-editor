@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ run.name }} — myavatar v6{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="/" class="text-sm text-slate-500 hover:text-slate-700">← runs</a>
+  <h1 class="text-2xl font-semibold mono mt-1">{{ run.name }}</h1>
+  <div class="text-xs text-slate-500 mono">{{ run.path }}</div>
+</div>
+
+{# ── Progress fragment (HTMX polling) ──────────────────────────── #}
+<div class="rounded border border-slate-200 bg-white p-3 mb-4 flex items-center gap-2"
+     hx-get="/run/{{ run.name }}/progress"
+     hx-trigger="load, every 1500ms"
+     hx-target="#polish-progress"
+     hx-swap="innerHTML">
+  <span id="polish-progress" class="text-slate-400 text-sm">checking polish progress…</span>
+</div>
+
+{# ── Summary card ─────────────────────────────────────────────── #}
+{% set s = run.summary or {} %}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <div class="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+    <div>
+      <div class="text-xs text-slate-500">Original</div>
+      <div class="mono text-lg">{{ (s.original_duration_s or 0)|round(1) }}s</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500">Editada</div>
+      <div class="mono text-lg">{{ (s.edited_duration_s or 0)|round(1) }}s</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500">Ahorro</div>
+      <div class="mono text-lg">{{ s.pct_saved or 0 }}%</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500">Silencios</div>
+      <div class="mono text-lg">{{ s.silences_detected or 0 }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500">Muletillas</div>
+      <div class="mono text-lg">{{ s.fillers_detected or 0 }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-slate-500">Cuts activos</div>
+      <div class="mono text-lg">{{ s.active_cuts or 0 }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Audio player ────────────────────────────────────────────── #}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <div class="text-xs text-slate-500 mb-2">Fuente original</div>
+  <audio id="player" controls class="w-full">
+    <source src="/run/{{ run.name }}/media/audio">
+    Tu navegador no soporta audio HTML5.
+  </audio>
+</div>
+
+{# ── Timeline visual ─────────────────────────────────────────── #}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <div class="flex items-center justify-between mb-2">
+    <h2 class="font-semibold">Timeline — cuts aplicados</h2>
+    <div class="flex gap-3 text-xs text-slate-500">
+      <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 cut-silence rounded-sm"></span>silencio</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 cut-filler rounded-sm"></span>filler</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 cut-retake rounded-sm"></span>retake</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 cut-merged rounded-sm"></span>merged</span>
+    </div>
+  </div>
+  <div class="relative bg-slate-200 rounded h-8 overflow-hidden" title="{{ run.timeline_visual.total_s|round(1) }}s">
+    {% for c in run.timeline_visual.cuts %}
+      <div class="absolute top-0 bottom-0 cut-{{ c.reason }} opacity-90 hover:opacity-100 cursor-pointer"
+           style="left: {{ c.pct_start }}%; width: {{ c.pct_width }}%; min-width: 1px;"
+           title="{{ c.id }} · {{ c.reason }} · {{ c.start_s|round(2) }}–{{ c.end_s|round(2) }}s · conf {{ c.confidence|round(2) }}"
+           data-start="{{ c.start_s }}"
+           onclick="document.getElementById('player').currentTime = {{ c.start_s }};"></div>
+    {% endfor %}
+  </div>
+  <div class="mt-2 flex justify-between text-xs text-slate-500 mono">
+    <span>0s</span>
+    <span>{{ run.timeline_visual.total_s|round(1) }}s</span>
+  </div>
+</div>
+
+{# ── Transcript polished ──────────────────────────────────────── #}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <h2 class="font-semibold mb-3">Transcript polished — {{ run.polished_segments|length }} segmentos</h2>
+  <div class="max-h-96 overflow-y-auto space-y-2 text-sm">
+    {% for seg in run.polished_segments %}
+      <div class="flex gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1 rounded"
+           onclick="document.getElementById('player').currentTime = {{ seg.start_s }};">
+        <span class="mono text-xs text-slate-400 shrink-0 w-16">{{ seg.start_s|round(1) }}s</span>
+        <span>{{ seg.text }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Entity candidates ──────────────────────────────────────── #}
+{% if run.entity_candidates %}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <h2 class="font-semibold mb-3">Candidatos de entidades ({{ run.entity_candidates.candidates|length }})</h2>
+  <div class="max-h-96 overflow-y-auto">
+    <table class="w-full text-sm">
+      <thead class="text-xs text-slate-500 uppercase">
+        <tr>
+          <th class="text-left py-1">Surface</th>
+          <th class="text-left">Evidence</th>
+          <th class="text-right">Occur.</th>
+          <th class="text-right">First @</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in run.entity_candidates.candidates %}
+        <tr class="border-t border-slate-100">
+          <td class="py-1 mono cursor-pointer hover:bg-slate-50"
+              onclick="document.getElementById('player').currentTime = {{ c.first_time_s }};">
+            {{ c.surface_form }}
+          </td>
+          <td class="text-xs text-slate-500">{{ c.evidence|join(', ') }}</td>
+          <td class="text-right mono">{{ c.occurrences }}</td>
+          <td class="text-right mono text-xs text-slate-500">{{ c.first_time_s }}s</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Transcript patches ──────────────────────────────────────── #}
+{% if run.transcript_patches %}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <h2 class="font-semibold mb-3">Patches aplicados ({{ run.transcript_patches.patches|length }})</h2>
+  <table class="w-full text-sm">
+    <thead class="text-xs text-slate-500 uppercase">
+      <tr>
+        <th class="text-left py-1">Layer</th>
+        <th class="text-left">Type</th>
+        <th class="text-left">From</th>
+        <th class="text-left">To</th>
+        <th class="text-right">Occur.</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in run.transcript_patches.patches %}
+      <tr class="border-t border-slate-100">
+        <td class="py-1 mono text-xs">{{ p.layer }}</td>
+        <td class="text-xs text-slate-500">{{ p.rule_type }}</td>
+        <td class="mono">{{ p['from'] }}</td>
+        <td class="mono text-green-700">{{ p.to }}</td>
+        <td class="text-right mono">{{ p.occurrences }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{# ── Downloads ──────────────────────────────────────────────── #}
+<div class="rounded border border-slate-200 bg-white p-4 mb-6">
+  <h2 class="font-semibold mb-3">Descargas (JSONs)</h2>
+  <div class="flex flex-wrap gap-2 text-sm">
+    {% for f in ["timeline_map.json", "transcript_polished.json", "transcript_raw.json", "transcript_patches.json", "entity_candidates.json", "summary.json"] %}
+      <a href="/run/{{ run.name }}/raw/{{ f }}"
+         class="mono px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs">{{ f }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

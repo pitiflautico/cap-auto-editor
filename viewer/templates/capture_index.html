@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Capture runs — myavatar v6{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Capture runs
+  <span class="text-xs font-normal text-slate-400 ml-2">auto-refresh 2s</span>
+</h1>
+
+<div id="capture-runs-list"
+     hx-get="/capture"
+     hx-trigger="every 2s"
+     hx-select="#capture-runs-list"
+     hx-swap="outerHTML">
+{% if not runs %}
+  <div class="rounded border border-slate-200 bg-white p-6 text-slate-500">
+    <p>No capture runs found. Run the capture pipeline to generate a <code class="mono">capture_manifest.json</code>.</p>
+  </div>
+{% else %}
+  <p class="text-sm text-slate-500 mb-4">{{ runs|length }} run(s).</p>
+  <div class="grid gap-3">
+    {% for r in runs %}
+      <a href="/capture/{{ r.name }}"
+         class="block rounded border border-slate-200 bg-white p-4 hover:border-slate-400 hover:shadow-sm transition">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <div class="font-semibold mono text-sm">{{ r.name }}</div>
+              {% if r.live %}
+                <span class="text-blue-700 animate-pulse text-xs">● {{ r.live_status }}</span>
+              {% elif r.done %}
+                <span class="text-slate-500 text-xs">{{ r.live_status }}</span>
+              {% endif %}
+            </div>
+            <div class="text-xs text-slate-500 mono">{{ r.path }}</div>
+          </div>
+          <div class="text-right text-xs text-slate-500 mono">
+            {% if r.created_at %}{{ r.created_at }}{% endif %}
+          </div>
+        </div>
+        {% if r.error %}
+          <div class="mt-2 text-sm text-red-600">{{ r.error }}</div>
+        {% else %}
+          <div class="mt-3 grid grid-cols-4 gap-3 text-sm">
+            <div>
+              <div class="text-xs text-slate-500">URLs</div>
+              <div class="mono">{{ r.total }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500">Ok</div>
+              <div class="mono text-green-700">{{ r.ok }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500">Failed</div>
+              <div class="mono {% if r.failed %}text-red-600{% else %}text-slate-400{% endif %}">{{ r.failed }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500">Backend</div>
+              <div class="mono">{{ r.backend_default or '—' }}</div>
+            </div>
+          </div>
+        {% endif %}
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+</div>
+{% endblock %}

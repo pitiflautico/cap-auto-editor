@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenvs (each module bootstraps its own)
+.venv/
+venv/
+env/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Build artefacts
+build/
+dist/
+*.whl
+
+# Run outputs (live in $MYAVATAR_RUNS, not in repo)
+runs/
+captures/
+
+# Logs / temp
+*.log
+*.log.*
+
+# Secrets — keys live in environment, not in tree
+.env
+.env.*
+!.env.example

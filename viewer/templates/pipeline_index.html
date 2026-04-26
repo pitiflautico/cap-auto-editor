@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Pipelines — myavatar v6{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Pipeline runs
+  <span class="text-xs font-normal text-slate-400 ml-2">auto-refresh 2s</span>
+</h1>
+
+<div id="pipeline-runs-list"
+     hx-get="/"
+     hx-trigger="every 2s"
+     hx-select="#pipeline-runs-list"
+     hx-swap="outerHTML">
+{% if not pipeline_runs %}
+  <div class="rounded border border-slate-200 bg-white p-6 text-slate-500">
+    <p>No pipeline runs found yet. Run capture + polish into a shared parent directory:</p>
+    <pre class="mono text-xs mt-3 p-3 bg-slate-100 rounded">capture run --out /tmp/mypipeline/capture/
+polish run --out-dir /tmp/mypipeline/polish/</pre>
+  </div>
+{% else %}
+  <p class="text-sm text-slate-500 mb-4">{{ pipeline_runs|length }} pipeline run(s).</p>
+  <div class="grid gap-3">
+    {% for p in pipeline_runs %}
+      <a href="/pipeline/{{ p.name }}"
+         class="block rounded border border-slate-200 bg-white p-4 hover:border-slate-400 hover:shadow-sm transition">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <div class="font-semibold mono text-sm">{{ p.name }}</div>
+            {% if p.any_live %}
+              <span class="text-blue-700 animate-pulse text-xs font-medium">● live</span>
+            {% elif p.all_done %}
+              <span class="text-green-700 text-xs font-medium">done</span>
+            {% elif p.any_failed %}
+              <span class="text-red-600 text-xs font-medium">failed</span>
+            {% endif %}
+          </div>
+          <div class="text-right text-xs text-slate-400 mono">
+            {% if p.created_at %}{{ p.created_at[:19] }}{% endif %}
+          </div>
+        </div>
+        {# Phase badges #}
+        <div class="flex flex-wrap gap-2">
+          {% for ph in p.phases %}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs
+              {% if ph.live %}bg-blue-100 text-blue-800
+              {% elif ph.done and not ph.failed %}bg-green-100 text-green-800
+              {% elif ph.failed %}bg-red-100 text-red-700
+              {% else %}bg-slate-100 text-slate-500{% endif %}">
+              <span class="font-medium">{{ ph.name }}</span>
+              <span class="opacity-75">
+                {% if ph.live %}
+                  ● {{ ph.live_status }}
+                {% elif ph.done and not ph.failed %}
+                  {{ ph.live_status }}
+                {% elif ph.failed %}
+                  failed
+                {% else %}
+                  not started
+                {% endif %}
+              </span>
+            </span>
+          {% endfor %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+</div>
+{% endblock %}

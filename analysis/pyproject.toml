@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "analysis"
+version = "1.0.0"
+description = "Editorial analysis phase for myavatar v6"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+analysis = "analysis.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/analysis"]

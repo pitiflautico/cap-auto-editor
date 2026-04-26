@@ -1,0 +1,49 @@
+[project]
+name = "polish"
+version = "0.1.0"
+description = "Phase 0 of myavatar v6 — clean spoken video (cut silences, resolve entities, emit polished transcript)"
+readme = "INTERFACE.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Daniel Pérez Pinazo", email = "pitiflautico3@gmail.com"},
+]
+dependencies = [
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+transcribe = [
+    "mlx-whisper; platform_machine=='arm64' and sys_platform=='darwin'",
+]
+llm = [
+    "google-genai",
+    "anthropic",
+]
+sources = [
+    "httpx",
+    "selectolax",
+]
+nlp = [
+    "spacy",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff",
+    "mypy",
+]
+
+[project.scripts]
+polish = "polish.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

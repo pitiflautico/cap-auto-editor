@@ -1,0 +1,1124 @@
+{
+  "schema_version": "1.3.0",
+  "created_at": "2026-04-25T14:42:01.224664Z",
+  "transcript_ref": "/tmp/run_full2/polish_fixed/transcript_polished.json",
+  "capture_manifest_ref": "/tmp/run_full2/capture/capture_manifest.json",
+  "language": "es",
+  "duration_s": 316.31262499999997,
+  "llm_provider": "deepseek",
+  "llm_model": "deepseek-v4-flash",
+  "narrative": {
+    "video_summary": "El video analiza dos noticias tecnológicas: el lanzamiento de Qwen 3.6, un modelo open source que iguala a Claude 4.6 y puede correr en una GPU de consumo, y el lanzamiento de GPT 5.5 por OpenAI, que enfrenta críticas por un benchmark interno bajo y pricing confuso. Se concluye que el open source está cerrando la brecha con los modelos frontier.",
+    "narrative_thesis": "El open source ha alcanzado a los modelos propietarios, y OpenAI se ve presionado a demostrar distancia.",
+    "audience": "Desarrolladores, entusiastas de IA y profesionales técnicos.",
+    "tone": "Informativo, analítico con un toque de ironía.",
+    "arc_acts": [
+      {
+        "name": "Hook (qwen+gpt)",
+        "start_s": 0.0,
+        "end_s": 3.0,
+        "purpose": "Introduce dos noticias importantes",
+        "topic_focus": [
+          "qwen_36",
+          "gpt_55"
+        ]
+      },
+      {
+        "name": "Setup (qwen)",
+        "start_s": 3.0,
+        "end_s": 22.4,
+        "purpose": "Presenta Qwen 3.6 como modelo open source que alcanza frontier",
+        "topic_focus": [
+          "qwen_36"
+        ]
+      },
+      {
+        "name": "Proof (qwen)",
+        "start_s": 22.4,
+        "end_s": 71.7,
+        "purpose": "Muestra especificaciones y benchmark que iguala a Claude",
+        "topic_focus": [
+          "qwen_36"
+        ]
+      },
+      {
+        "name": "Value (qwen)",
+        "start_s": 71.7,
+        "end_s": 113.6,
+        "purpose": "Explica ventajas de ejecución local y casos de uso",
+        "topic_focus": [
+          "qwen_36"
+        ]
+      },
+      {
+        "name": "Payoff (qwen)",
+        "start_s": 113.6,
+        "end_s": 178.0,
+        "purpose": "Calcula el impacto económico y declara el fin del moat",
+        "topic_focus": [
+          "qwen_36"
+        ]
+      },
+      {
+        "name": "Transition (qwen->gpt)",
+        "start_s": 178.0,
+        "end_s": 203.8,
+        "purpose": "Transiciona a la segunda noticia: GPT 5.5",
+        "topic_focus": [
+          "gpt_55"
+        ]
+      },
+      {
+        "name": "Hook (gpt)",
+        "start_s": 203.8,
+        "end_s": 210.0,
+        "purpose": "Resalta el timing cómico del lanzamiento",
+        "topic_focus": [
+          "gpt_55"
+        ]
+      },
+      {
+        "name": "Pain (gpt)",
+        "start_s": 210.0,
+        "end_s": 226.6,
+        "purpose": "Describe la presión del open source y la comparación con Sonnet",
+        "topic_focus": [
+          "gpt_55"
+        ]
+      },
+      {
+        "name": "Proof (gpt)",
+        "start_s": 226.6,
+        "end_s": 248.2,
+        "purpose": "Muestra el benchmark interno OpenAI Proof con 1.7%",
+        "topic_focus": [
+          "gpt_55"
+        ]
+      },
+      {
+        "name": "Pain (gpt)",
+        "start_s": 248.2,
+        "end_s": 286.0,
+        "purpose": "Expone problemas de pricing y comunicación defensiva",
+        "topic_focus": [
+          "gpt_55"
+        ]
+      },
+      {
+        "name": "Payoff (gpt)",
+        "start_s": 286.0,
+        "end_s": 312.0,
+        "purpose": "Concluye que el open source cierra la brecha con frontier",
+        "topic_focus": [
+          "gpt_55",
+          "qwen_36"
+        ]
+      },
+      {
+        "name": "Closure",
+        "start_s": 312.0,
+        "end_s": 316.3,
+        "purpose": "Cierra el video con despedida",
+        "topic_focus": []
+      }
+    ],
+    "beats": [
+      {
+        "beat_id": "b001",
+        "start_s": 0.0,
+        "end_s": 3.0,
+        "text": "buenas, dos noticias bastante importantes y correlacionadas.",
+        "editorial_function": "hook",
+        "hero_text_candidate": "Dos noticias importantes",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36",
+          "gpt_55"
+        ],
+        "broll_hints": [
+          {
+            "type": "title",
+            "description": "Animated title: Dos noticias importantes",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b002",
+        "start_s": 3.0,
+        "end_s": 12.0,
+        "text": "Por un lado, vamos a hablar de Qwen 3 .6 de 27 millones de parámetros",
+        "editorial_function": "thesis",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b003",
+        "start_s": 12.0,
+        "end_s": 22.4,
+        "text": "y es el open source que ha alcanzado al frontier.",
+        "editorial_function": "value",
+        "hero_text_candidate": "Open source alcanza frontier",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "video",
+            "description": "Animation of open source model reaching frontier benchmark",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b004",
+        "start_s": 22.4,
+        "end_s": 30.0,
+        "text": "Vamos a poner los números un poco sobre la mesa antes de interpretar nada",
+        "editorial_function": "hook",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b005",
+        "start_s": 30.0,
+        "end_s": 40.0,
+        "text": "y es que el modelo tiene 27 mil millones de parámetros,",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "slide",
+            "description": "Slide: 27B params, 85 TPS, RTX 3090",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "medium",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b006",
+        "start_s": 40.0,
+        "end_s": 50.8,
+        "text": "corre a 85 tokens por segundo con una modesta RTX 3090,",
+        "editorial_function": "proof",
+        "hero_text_candidate": "85 tokens por segundo",
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "slide",
+            "description": "Slide: 125K context, visión, 1 GPU",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "medium",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b007",
+        "start_s": 50.8,
+        "end_s": 58.0,
+        "text": "tiene 125 mil tokens de contexto, tiene además visión incluida, corre en una sola GPU",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b008",
+        "start_s": 58.0,
+        "end_s": 65.0,
+        "text": "y además, por todo ello, puede correr en tu ordenador. un hito bastante importante",
+        "editorial_function": "value",
+        "hero_text_candidate": "Corre en tu ordenador",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "mockup",
+            "description": "Mockup of laptop showing Qwen 3.6 running locally",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b009",
+        "start_s": 65.0,
+        "end_s": 71.7,
+        "text": "porque algunos análisis le dan un empate técnico, ojo, con Claude .4 .6 en benchmark de agencia. Quien no se quede con este detalle técnico realmente, yo creo que lo está subestimando y es que hace 12 meses,",
+        "editorial_function": "proof",
+        "hero_text_candidate": "Empate técnico con Claude 4.6",
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "slide",
+            "description": "Comparison slide: Qwen 3.6 vs Claude 4.6 agentic benchmark",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "medium",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b010",
+        "start_s": 71.7,
+        "end_s": 80.0,
+        "text": "esta configuración, la misma, exigía un cluster de 8 GPUs de un data center, una factura de 5 cifras y desde luego un contrato de infraestructura bastante importante.",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b011",
+        "start_s": 80.0,
+        "end_s": 88.0,
+        "text": "Y hoy cabe en una mesa de un desarrollador y es la pieza que acaba de romper",
+        "editorial_function": "solution",
+        "hero_text_candidate": "Cabe en una mesa de desarrollador",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "photo",
+            "description": "Photo of a developer working at a desk with a single GPU",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b012",
+        "start_s": 88.0,
+        "end_s": 92.2,
+        "text": "desde luego el argumento para jugar en una liga alta que antes hacía falta una billetera realmente importante.",
+        "editorial_function": "value",
+        "hero_text_candidate": null,
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "video",
+            "description": "Animation of a barrier breaking",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": "mask_reveal",
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b013",
+        "start_s": 92.2,
+        "end_s": 100.0,
+        "text": "desde luego, el benchmark no es solo sintético y es que los reportes de developers usando Qwen 3 .6 como coding, de como... herramienta de coding, son realmente consistentes.",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b014",
+        "start_s": 100.0,
+        "end_s": 107.0,
+        "text": "Y es que tiene la velocidad decente en el código, en el seguimiento de instrucciones,",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b015",
+        "start_s": 107.0,
+        "end_s": 113.6,
+        "text": "en la capacidad de racionamiento en cadena comparable a lo que",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b016",
+        "start_s": 113.6,
+        "end_s": 120.0,
+        "text": "antes solo conseguías con estos modelos de pago de API. La pregunta realmente es obvia.",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b017",
+        "start_s": 120.0,
+        "end_s": 127.0,
+        "text": "¿Cuánto va a tardar alguien en montar una infraestructura muy parecida a Claude en local corriendo sobre Qwen?",
+        "editorial_function": "hook",
+        "hero_text_candidate": "¿Infraestructura local como Claude?",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "title",
+            "description": "Title: ¿Cuánto tardará?",
+            "timing": {
+              "in_pct": 0.5,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b018",
+        "start_s": 127.0,
+        "end_s": 134.0,
+        "text": "la respuesta realista yo creo que va a estar en semanas y, desde luego, no meses. Y cuando esto ocurra, el cálculo económico de usar un",
+        "editorial_function": "value",
+        "hero_text_candidate": "Semanas, no meses",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "title",
+            "description": "Title: Semanas, no meses",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b019",
+        "start_s": 134.0,
+        "end_s": 142.0,
+        "text": "producto encerrado se invierte para un perfil enorme de usuarios.",
+        "editorial_function": "payoff",
+        "hero_text_candidate": null,
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b020",
+        "start_s": 142.0,
+        "end_s": 150.0,
+        "text": "Desde luego, no para todos, pero sí para este desarrollador que valora la privacidad, la latencia local y la ausencia de censura en su pipeline.",
+        "editorial_function": "value",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b021",
+        "start_s": 150.0,
+        "end_s": 159.3,
+        "text": "moat basado en un modelo ya no existe, desde luego, y punto. es que lo que queda en manos de OpenAI, de Anthropic,",
+        "editorial_function": "payoff",
+        "hero_text_candidate": "Moat basado en modelo ya no existe",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "video",
+            "description": "Animation of a moat crumbling",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b022",
+        "start_s": 159.3,
+        "end_s": 165.0,
+        "text": "de Google, son básicamente 3 cosas.",
+        "editorial_function": "thesis",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b023",
+        "start_s": 165.0,
+        "end_s": 171.0,
+        "text": "Uno, los datos de entrenamiento propietarios, y en pipelines de finetuning.",
+        "editorial_function": "value",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b024",
+        "start_s": 171.0,
+        "end_s": 178.0,
+        "text": "Dos, una integración con un producto, es decir, Claude Code, ChatGPT o Gemini Workspace. Y tres, la infraestructura de inferencia a escala para un caos que no cabe en GPUs normales. Para todo lo demás, es capacidad pura de modelo como proposición",
+        "editorial_function": "value",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b025",
+        "start_s": 178.0,
+        "end_s": 185.0,
+        "text": "de venta, básicamente. Y acaba de enterrar o entrar en un modelo, desde luego, de commodity.",
+        "editorial_function": "payoff",
+        "hero_text_candidate": "Modelo como commodity",
+        "energy": "high",
+        "references_topic_ids": [
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "video",
+            "description": "Animation of product becoming commodity",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b026",
+        "start_s": 185.0,
+        "end_s": 194.0,
+        "text": "Por otro lado, vamos a hablar del lanzamiento de GPT 5 .5, que yo creo que ha sido el lanzamiento más incómodo del año.",
+        "editorial_function": "transition",
+        "hero_text_candidate": "Lanzamiento de GPT 5.5",
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": [
+          {
+            "type": "title",
+            "description": "Title: GPT 5.5",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "medium",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b027",
+        "start_s": 194.0,
+        "end_s": 203.8,
+        "text": "Y es que es exactamente en este momento cuando OpenAI ha sacado",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b028",
+        "start_s": 203.8,
+        "end_s": 210.0,
+        "text": "GPT 5 .5 y el timing es casi cómico.",
+        "editorial_function": "hook",
+        "hero_text_candidate": "Timing casi cómico",
+        "energy": "high",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": [
+          {
+            "type": "video",
+            "description": "Clock ticking fast",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "high",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b029",
+        "start_s": 210.0,
+        "end_s": 218.0,
+        "text": "Y es que una semana después que open source demuestre que puede igualar a un todopoderoso Sonnet 4 .6, el modelo está cerrado.",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b030",
+        "start_s": 218.0,
+        "end_s": 226.6,
+        "text": "Lleva meses siendo referencia Sonnet, me refiero. Y es que OpenAI acaba de mostrar distancia y lanza GPT 5 .5.",
+        "editorial_function": "value",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b031",
+        "start_s": 226.6,
+        "end_s": 233.0,
+        "text": "Y el problema es que los datos que están saliendo no son los que exactamente OpenAI quisiera tener en la portada.",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b032",
+        "start_s": 233.0,
+        "end_s": 240.0,
+        "text": "El dato desde luego está doliendo y es que un benchmark interno de la propia OpenAI, llamado OpenAI Proof diseñado para medir el rendimiento en problemas reales de investigación y de engineering, le da GPT 5 .5 un 1 .7%, es decir, 1 ,7%.",
+        "editorial_function": "proof",
+        "hero_text_candidate": "OpenAI Proof: 1.7%",
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": [
+          {
+            "type": "slide",
+            "description": "Slide: OpenAI Proof benchmark at 1.7%",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "medium",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b033",
+        "start_s": 240.0,
+        "end_s": 248.2,
+        "text": "Y es que es un benchmark interno de la propia casa. No es un benchmark académico, desde luego, amistoso. Y es un listón interno y está publicado.",
+        "editorial_function": "proof",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b034",
+        "start_s": 248.2,
+        "end_s": 254.0,
+        "text": "ruido, el pricing, circulado carturas de que está señalando que la estructura de precios de GPT 5 .5, que ya lo sabemos, se está interpretando mal en redes.",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b035",
+        "start_s": 254.0,
+        "end_s": 260.0,
+        "text": "Lo que sugiere que OpenAI no ha comunicado del todo bien el coste por token frente a la competencia.",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b036",
+        "start_s": 260.0,
+        "end_s": 268.0,
+        "text": "Cuando el pricing está necesitando aclarar,",
+        "editorial_function": "pain",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b037",
+        "start_s": 268.0,
+        "end_s": 286.0,
+        "text": "(speaker retakes)",
+        "editorial_function": "transition",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b039",
+        "start_s": 286.0,
+        "end_s": 294.0,
+        "text": "interno que no ayuda, un pricing confuso, una comunicación que está siendo defensiva",
+        "editorial_function": "payoff",
+        "hero_text_candidate": null,
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b040",
+        "start_s": 294.0,
+        "end_s": 302.0,
+        "text": "y un open source de 27 millones pisándole los talones a modelo anterior.",
+        "editorial_function": "pain",
+        "hero_text_candidate": "Open source pisando talones",
+        "energy": "medium",
+        "references_topic_ids": [
+          "gpt_55",
+          "qwen_36"
+        ],
+        "broll_hints": [
+          {
+            "type": "video",
+            "description": "Footsteps approaching",
+            "timing": {
+              "in_pct": 0.0,
+              "out_pct": 1.0
+            },
+            "capcut_effect": null,
+            "energy_match": "medium",
+            "source_ref": null
+          }
+        ]
+      },
+      {
+        "beat_id": "b041",
+        "start_s": 302.0,
+        "end_s": 312.0,
+        "text": "5 .5 no es un mal modelo, pero probablemente es esto de lo que OpenAI necesitaba esta semana frenar la narrativa de que el open source está cerrando la brecha con los modelos frontier.",
+        "editorial_function": "payoff",
+        "hero_text_candidate": null,
+        "energy": "high",
+        "references_topic_ids": [
+          "gpt_55",
+          "qwen_36"
+        ],
+        "broll_hints": []
+      },
+      {
+        "beat_id": "b042",
+        "start_s": 312.0,
+        "end_s": 316.3,
+        "text": "Espero que os haya gustado y nos vemos la semana que viene.",
+        "editorial_function": "transition",
+        "hero_text_candidate": null,
+        "energy": "low",
+        "references_topic_ids": [],
+        "broll_hints": []
+      }
+    ],
+    "topics": [
+      {
+        "topic_id": "qwen_36",
+        "label": "Qwen 3.6",
+        "description": "Modelo open source de 27 billones de parámetros que alcanza rendimiento frontier en una sola GPU.",
+        "role": "main",
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b001",
+          "b002",
+          "b003",
+          "b004",
+          "b005",
+          "b006",
+          "b007",
+          "b008",
+          "b009",
+          "b010",
+          "b011",
+          "b012",
+          "b013",
+          "b014",
+          "b015",
+          "b016",
+          "b017",
+          "b018",
+          "b019",
+          "b020",
+          "b021",
+          "b022",
+          "b023",
+          "b024",
+          "b025",
+          "b040",
+          "b041"
+        ]
+      },
+      {
+        "topic_id": "gpt_55",
+        "label": "GPT 5.5",
+        "description": "Lanzamiento incómodo de OpenAI con benchmark interno bajo y pricing confuso.",
+        "role": "main",
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b001",
+          "b026",
+          "b027",
+          "b028",
+          "b029",
+          "b030",
+          "b031",
+          "b032",
+          "b033",
+          "b034",
+          "b035",
+          "b036",
+          "b039",
+          "b040",
+          "b041"
+        ]
+      },
+      {
+        "topic_id": "claude_46",
+        "label": "Claude 4.6 (Sonnet)",
+        "description": "Modelo frontier de Anthropic usado como referencia.",
+        "role": "supporting",
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b009",
+          "b029"
+        ]
+      },
+      {
+        "topic_id": "openai",
+        "label": "OpenAI",
+        "description": "Compañía creadora de GPT y ChatGPT.",
+        "role": "supporting",
+        "kind": "company",
+        "mentioned_in_beats": [
+          "b021",
+          "b027",
+          "b030",
+          "b031",
+          "b032",
+          "b033",
+          "b035",
+          "b041"
+        ]
+      },
+      {
+        "topic_id": "anthropic",
+        "label": "Anthropic",
+        "description": "Compañía creadora de Claude.",
+        "role": "supporting",
+        "kind": "company",
+        "mentioned_in_beats": [
+          "b021"
+        ]
+      },
+      {
+        "topic_id": "google",
+        "label": "Google",
+        "description": "Compañía con Gemini workspace.",
+        "role": "supporting",
+        "kind": "company",
+        "mentioned_in_beats": [
+          "b022"
+        ]
+      }
+    ],
+    "entities": [
+      {
+        "canonical": "Qwen 3.6",
+        "surface_forms": [
+          "Qwen 3 .6",
+          "Qwen"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b002",
+          "b003",
+          "b005",
+          "b006",
+          "b007",
+          "b008",
+          "b009",
+          "b013",
+          "b017",
+          "b018"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "Claude 4.6 Sonnet",
+        "surface_forms": [
+          "Claude .4 .6",
+          "Sonnet 4 .6",
+          "Claude"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b009",
+          "b029"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "OpenAI",
+        "surface_forms": [
+          "OpenAI"
+        ],
+        "kind": "company",
+        "mentioned_in_beats": [
+          "b021",
+          "b027",
+          "b030",
+          "b031",
+          "b032",
+          "b033",
+          "b035",
+          "b041"
+        ],
+        "official_urls": [
+          "https://openai.com/introducing-gpt-5-5"
+        ]
+      },
+      {
+        "canonical": "Anthropic",
+        "surface_forms": [
+          "Anthropic"
+        ],
+        "kind": "company",
+        "mentioned_in_beats": [
+          "b021"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "Google",
+        "surface_forms": [
+          "Google"
+        ],
+        "kind": "company",
+        "mentioned_in_beats": [
+          "b022"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "GPT 5.5",
+        "surface_forms": [
+          "GPT 5 .5"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b026",
+          "b028",
+          "b030",
+          "b032",
+          "b034",
+          "b041"
+        ],
+        "official_urls": [
+          "https://openai.com/introducing-gpt-5-5"
+        ]
+      },
+      {
+        "canonical": "NVIDIA RTX 3090",
+        "surface_forms": [
+          "RTX 3090"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b006"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "Claude Code",
+        "surface_forms": [
+          "Claude Code"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b024"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "ChatGPT",
+        "surface_forms": [
+          "ChatGPT"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b024"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "Gemini Workspace",
+        "surface_forms": [
+          "Gemini Workspace"
+        ],
+        "kind": "product",
+        "mentioned_in_beats": [
+          "b024"
+        ],
+        "official_urls": []
+      },
+      {
+        "canonical": "OpenAI Proof",
+        "surface_forms": [
+          "OpenAI Proof"
+        ],
+        "kind": "concept",
+        "mentioned_in_beats": [
+          "b032"
+        ],
+        "official_urls": []
+      }
+    ]
+  },
+  "validation": {
+    "numeric_conflicts": [],
+    "invalid_source_refs": [],
+    "flagged_beats": [],
+    "entity_patches": [],
+    "id_remaps": [],
+    "entity_normalizations_applied": 0,
+    "blocked": false,
+    "blocking_reasons": []
+  }
+}
