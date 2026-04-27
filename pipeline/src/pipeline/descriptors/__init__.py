@@ -7,6 +7,7 @@ from .auto_source import auto_source_descriptor
 from .visual_inventory import visual_inventory_descriptor
 from .script_finalizer import script_finalizer_descriptor
 from .broll_resolver import broll_resolver_descriptor
+from .acquisition import acquisition_descriptor
 
 __all__ = [
     "capture_descriptor",
@@ -17,4 +18,5 @@ __all__ = [
     "visual_inventory_descriptor",
     "script_finalizer_descriptor",
     "broll_resolver_descriptor",
+    "acquisition_descriptor",
 ]
