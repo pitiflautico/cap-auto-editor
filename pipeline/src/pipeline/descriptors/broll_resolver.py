@@ -12,9 +12,10 @@ BR_BIN = (
 
 
 def _br_args(ctx: RunContext, phase_dir: Path) -> list[str]:
-    # Prefer the balanced analysis (post-finalizer); fall back to
-    # super_enriched / enriched / raw analysis.
+    # Prefer the post-matcher analysis (LLM-refined anchors); fall back to
+    # balanced → super_enriched → enriched → raw.
     candidates = [
+        ctx.run_dir / "broll_matcher" / "analysis_matched.json",
         ctx.run_dir / "script_finalizer" / "analysis_balanced.json",
         ctx.run_dir / "auto_source" / "analysis_super_enriched.json",
         ctx.run_dir / "entity_enricher" / "analysis_enriched.json",
@@ -36,11 +37,11 @@ def _br_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 broll_resolver_descriptor = PhaseDescriptor(
     name="broll_resolver",
     display_name="B-roll Resolver",
-    order=8,
+    order=9,
     out_subdir="broll_resolver",
     cli_command=[BR_BIN, "run"],
     cli_args=_br_args,
-    depends_on=["script_finalizer"],
+    depends_on=["broll_matcher"],
     on_failure="skip",
     retry_max=0,
     timeout_s=120,

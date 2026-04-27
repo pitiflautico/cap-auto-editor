@@ -22,7 +22,7 @@ def _acq_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 acquisition_descriptor = PhaseDescriptor(
     name="acquisition",
     display_name="Acquisition",
-    order=9,
+    order=10,
     out_subdir="acquisition",
     cli_command=[ACQ_BIN, "run"],
     cli_args=_acq_args,

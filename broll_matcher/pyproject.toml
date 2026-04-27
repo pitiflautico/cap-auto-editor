@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "broll_matcher"
+version = "0.1.0"
+description = "Phase 7.5 of myavatar v6 — semantic LLM match between beat.text and inventory segments"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "analysis",
+    "visual_inventory",
+    "llm",
+    "progress",
+]
+
+[project.scripts]
+broll-matcher = "broll_matcher.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/broll_matcher"]

@@ -26,7 +26,7 @@ def _sb_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 storyboard_descriptor = PhaseDescriptor(
     name="storyboard",
     display_name="Storyboard",
-    order=10,
+    order=11,
     out_subdir="storyboard",
     cli_command=[SB_BIN, "run"],
     cli_args=_sb_args,
