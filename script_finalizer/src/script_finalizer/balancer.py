@@ -35,10 +35,15 @@ _ANCHOR_THRESHOLD = 0.45     # below this we don't anchor
 _DROP_SUBJECT_THRESHOLD = 0.30  # below + has a subject + no inventory match → drop
 
 # Types that may anchor against captured/inventoried natural footage.
-# Slides, titles and mockups are "designed" frames that should be produced
-# locally (text_card / generated mockup) — anchoring them to a random
-# product clip would destroy the editorial intent.
-_TYPES_ANCHORABLE = frozenset({"video", "web_capture", "photo"})
+# `title`, `slide`, `mockup` are "designed" frames that the compositor
+# (or text_card templates) must generate — anchoring them to a random
+# product clip destroys the editorial intent. Everything else, including
+# `pexels` (stock placeholder), can upgrade to a captured asset when the
+# inventory has a strong match.
+_DESIGNED_TYPES = frozenset({"title", "slide", "mockup"})
+_TYPES_ANCHORABLE = frozenset(
+    {"video", "web_capture", "photo", "pexels"}
+) - _DESIGNED_TYPES
 
 
 def _coverage_pct(beats: list[Beat], duration_s: float) -> float:
@@ -114,6 +119,28 @@ def balance(
     for beat in analysis.narrative.beats:
         new_hints: list[BrollHint] = []
         for hi, hint in enumerate(beat.broll_hints or []):
+            # Designed types (`title`, `slide`, `mockup`) are *generated* by
+            # the compositor (or text_card templates) — they are NEVER
+            # anchored to inventory. Anchoring a "title" overlay request to
+            # a random og:image of the company logo destroys the editorial
+            # intent the LLM expressed. Skip the scorer entirely and keep
+            # the hint with no source_ref so acquisition renders it.
+            if hint.type not in _TYPES_ANCHORABLE:
+                # Drop any LLM-emitted source_ref too — for a designed
+                # type (title/slide/mockup) any `source_ref` set by the
+                # LLM would mislead broll_resolver into treating the
+                # slot as a screenshot. The compositor template owns
+                # this slot; downstream phases must see it as pending.
+                designed = hint.model_copy(update={"source_ref": None})
+                new_hints.append(designed)
+                report.hint_decisions.append(HintDecision(
+                    beat_id=beat.beat_id, hint_index=hi,
+                    action="kept",
+                    rationale=(f"type={hint.type!r} is a designed asset; "
+                               f"acquisition will render it via template"),
+                ))
+                continue
+
             best = best_segment_for_hint(
                 hint, beat.editorial_function, inventory.assets,
                 used_assets=used_assets, used_segments=used_segments,
@@ -146,14 +173,21 @@ def balance(
                 ))
                 continue
 
-            # No strong anchor — decide drop / downgrade / keep
+            # No strong anchor — decide drop / downgrade / keep.
+            # Drop only applies to REAL_FOOTAGE_TYPES: those types must
+            # come from existing footage (we can't manufacture them).
+            # Pexels / slide / title / mockup all flow into acquisition,
+            # which can fetch stock or render a text_card, so we keep
+            # them so the editor still has a slot to fill.
             has_subject = bool(hint.subject)
-            if has_subject and score_h <= _DROP_SUBJECT_THRESHOLD:
-                # Subject named but no visual support → drop instead of stocking
+            if has_subject and score_h <= _DROP_SUBJECT_THRESHOLD \
+                    and hint.type in REAL_FOOTAGE_TYPES:
                 report.hint_decisions.append(HintDecision(
                     beat_id=beat.beat_id, hint_index=hi,
                     action="dropped",
-                    rationale=f"subject {hint.subject!r} has no visual support (score {score_h:.2f})",
+                    rationale=(f"subject {hint.subject!r} has no visual support "
+                               f"(score {score_h:.2f}) and type {hint.type} "
+                               f"requires real footage"),
                 ))
                 continue
 

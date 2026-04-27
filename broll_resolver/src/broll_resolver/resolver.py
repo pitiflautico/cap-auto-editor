@@ -136,14 +136,13 @@ def _resolve_one(
                     abs_path=str(abs_p), slug=hint.source_ref,
                 )
 
-    # 4) title fallback (no asset needed)
-    if hint.type == "title":
-        return ResolvedAsset(
-            **common_kwargs, type=hint.type,
-            kind="title", source="title_fallback",
-        )
-
-    # 5) Pending — needs acquisition
+    # All designed types (title / slide / mockup) and any other hint
+    # without inventory backing fall through to acquisition, where the
+    # text_card / mockup / slide layouts (or Pexels for the rest)
+    # produce the actual asset on disk. The legacy `title_fallback`
+    # branch used to short-circuit `type=title` here without an
+    # abs_path; the storyboard then drew a generic placeholder. Now
+    # acquisition renders the proper title layout PNG instead.
     return PendingHint(
         beat_id=beat.beat_id, hint_index=hi, type=hint.type,
         subject=hint.subject, query=hint.query,

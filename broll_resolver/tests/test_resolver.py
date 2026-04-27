@@ -123,16 +123,20 @@ def test_source_ref_screenshot_when_only_image(tmp_path: Path):
     assert r.abs_path.endswith("captures/blogpost/screenshot.png")
 
 
-def test_title_fallback_resolves_without_asset(tmp_path: Path):
+def test_title_falls_through_to_acquisition(tmp_path: Path):
+    """Designed types (title/slide/mockup) without source_ref must go
+    to acquisition — never resolve to a kind=title placeholder. The
+    new text_card layouts in acquisition own the rendering of these
+    slots."""
     manifest = {"out_dir": str(tmp_path), "results": []}
     a = _analysis([_beat("b001", 0, 5,
                           hints=[_hint(type_="title", description="Hero text overlay")])])
     plan, pending, _ = resolve(a, manifest, tmp_path)
-    assert len(plan.resolved) == 1
-    r = plan.resolved[0]
-    assert r.kind == "title"
-    assert r.abs_path is None
-    assert pending.pending == []
+    assert plan.resolved == []
+    assert len(pending.pending) == 1
+    p = pending.pending[0]
+    assert p.type_ == "title"
+    assert p.beat_id == "b001"
 
 
 def test_pending_when_no_local_material(tmp_path: Path):
@@ -183,8 +187,9 @@ def test_report_counts_by_source_and_type(tmp_path: Path):
         ]),
     ])
     _, _, report = resolve(a, manifest, tmp_path)
-    assert report.resolved_count == 2
-    assert report.pending_count == 1
+    # title now goes to acquisition (no more title_fallback) → 1 resolved + 2 pending
+    assert report.resolved_count == 1
+    assert report.pending_count == 2
     assert report.resolved_by_source.get("anchor_in_inventory", 0) == 1
-    assert report.resolved_by_source.get("title_fallback", 0) == 1
     assert report.pending_by_type.get("video", 0) == 1
+    assert report.pending_by_type.get("title", 0) == 1

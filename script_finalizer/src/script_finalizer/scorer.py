@@ -110,13 +110,33 @@ def best_segment_for_hint(
     hint_subj = (hint.subject or "").lower().strip()
     hint_shot = hint.shot_type or ""
 
+    # Trust signal: the LLM may have explicitly mapped this hint to a
+    # capture slug via `source_ref`. If that asset exists, we trust the
+    # editorial pairing and bypass the subject hard-gate — the LLM has
+    # already made the semantic match (e.g. subject="GitHub" → slug
+    # "github-com-mirofish" whose keyframe label is just "mirofish").
+    pinned_slug = hint.source_ref if hint.source_ref else None
+
     for asset in inventory_assets:
         # Subject check via keyframe subjects
         kf_subjects: set[str] = set()
         for k in asset.keyframes:
             for s in k.subjects:
                 kf_subjects.add(s.lower())
-        if hint_subj:
+        is_pinned = (pinned_slug == asset.slug)
+
+        # Visual variety guard: a single-segment og:image is one fixed
+        # frame. Reusing it across multiple beats produces visually
+        # identical thumbs. Cap non-pinned reuse at 1 — anything beyond
+        # that should fall through to acquisition (Pexels, text_card)
+        # so the editor sees fresh footage instead of stamping the same
+        # logo three times.
+        already_used = used_assets.get(asset.slug, 0)
+        single_segment_asset = len(asset.best_segments) <= 1
+        if single_segment_asset and already_used >= 1 and not is_pinned:
+            continue
+
+        if hint_subj and not is_pinned:
             if any(hint_subj in s or s in hint_subj for s in kf_subjects):
                 subj_score = 1.0
             elif kf_subjects:
@@ -125,13 +145,31 @@ def best_segment_for_hint(
                 continue
             else:
                 subj_score = 0.5      # asset has no labels — neutral
+        elif is_pinned:
+            subj_score = 1.0          # LLM-trusted pairing
         else:
             subj_score = 0.5
 
-        ef_match = any(
-            beat_editorial_function in k.best_for for k in asset.keyframes
-        )
-        ef_score = 1.0 if ef_match else 0.0
+        if is_pinned:
+            # When the LLM has explicitly mapped this beat → asset, both
+            # the subject and editorial-function fit are already vouched
+            # for. Treat the editorial dimension as a match too, so a
+            # haiku-vision `best_for` that excludes the beat's ef cannot
+            # demote the trusted pairing below the anchor threshold.
+            ef_score = 1.0
+        else:
+            ef_match = any(
+                beat_editorial_function in k.best_for for k in asset.keyframes
+            )
+            ef_score = 1.0 if ef_match else 0.0
+
+        # Static assets (single-keyframe og:images) have only one segment
+        # in best_segments. Reusing the asset == reusing that segment, so
+        # stacking both penalties (-0.15 + -0.40 = -0.55) effectively
+        # blocks any reuse even when there's no other anchor candidate.
+        # Apply the per-segment penalty only when the asset offers more
+        # than one segment to choose from.
+        single_segment = len(asset.best_segments) <= 1
 
         for seg in asset.best_segments:
             shot_score = 1.0 if (hint_shot and seg.shot_type == hint_shot) else (
@@ -141,7 +179,8 @@ def best_segment_for_hint(
             # Variety penalty
             asset_uses = used_assets.get(asset.slug, 0)
             seg_uses = used_segments.get((asset.slug, seg.t_start_s), 0)
-            penalty = 0.15 * asset_uses + 0.40 * seg_uses
+            seg_penalty = 0.0 if single_segment else 0.40 * seg_uses
+            penalty = 0.15 * asset_uses + seg_penalty
             adjusted = max(0.0, combined - penalty)
             if best is None or adjusted > best[2]:
                 best = (asset, seg, adjusted)
