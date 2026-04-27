@@ -9,9 +9,10 @@
 
 ```
 Lee v6/NEXT_STEPS.md.
-Estado actual: pipeline 11 fases registradas, 436 tests verde,
+Estado actual: pipeline 12 fases registradas, 448 tests verde,
 último freeze pushado en v0.2.0 + commits post-freeze (broll_matcher,
-storyboard, fixes variety+type gate, viewer file endpoint, etc.).
+storyboard, subtitler, fixes variety+type gate, viewer file endpoint
+con Cache-Control: no-cache, etc.).
 La carpeta v6/ es la unidad versionada del repo cap-auto-editor.
 Wrapper único: ./myavatar produce <video> [--sources urls.txt].
 Runs viven en ~/myavatar/runs/<name>/.
@@ -20,7 +21,7 @@ Viewer: http://127.0.0.1:8765 (auto-launch desde ./myavatar).
 
 ---
 
-## Pipeline actual (11 fases)
+## Pipeline actual (12 fases)
 
 | # | Fase | Output principal |
 |---|---|---|
@@ -35,16 +36,17 @@ Viewer: http://127.0.0.1:8765 (auto-launch desde ./myavatar).
 | 9 | `broll_resolver` | `broll_plan.json` + `pending_acquisition.json` |
 | 10 | `acquisition` | `pending_acquired.json` + `broll_plan_complete.json` (Pexels + text_card) |
 | 11 | `storyboard` | `storyboard.json` + `thumbs/<beat>_<n>.jpg` |
+| 12 | `subtitler` | `subtitles.srt` + `subtitles.ass` + `subtitle_clips.json` (word-by-word, depends_on=polish) |
 
-Tests por módulo (snapshot post-broll_matcher):
+Tests por módulo (snapshot post-subtitler + finalizer variety/source_ref fix):
 
 ```
 capture           88   polish      58   analysis        91
 pipeline          32   viewer      48   entity_enricher 55
-auto_source       11   visual_inv  14   script_finalizer 9
+auto_source       11   visual_inv  14   script_finalizer 14
 broll_resolver     7   acquisition  8   storyboard       6
-broll_matcher      9
-TOTAL: 436 tests passing
+broll_matcher      9   subtitler  12
+TOTAL: 453 tests passing
 ```
 
 ---
@@ -62,16 +64,19 @@ TOTAL: 436 tests passing
 
 ## Bugs conocidos / deuda técnica
 
-### 🟡 viewer
-- **Screenshots cache-stale**: si el endpoint `screenshot/{slug}` se sirvió una vez y se cambió a `/file/<rel>`, el navegador cachea el 404. Hard reload (Cmd+Shift+R) lo arregla. Considerar `Cache-Control: no-cache` durante desarrollo.
+### 🟢 viewer
+- ~~Screenshots cache-stale~~: resuelto. `/pipeline/{run}/{phase}/file/{...}` y `/pipeline/{run}/{phase}/screenshot/{slug}` emiten ahora `Cache-Control: no-cache, must-revalidate`.
 - **Live progress streaming** sigue pendiente. Hoy sólo se actualiza con recarga manual.
 - **Refresh manifest sin re-correr**: comando `./myavatar refresh <run>` para regenerar `pipeline_manifest.json` cuando se actualiza un descriptor (hoy hay un snippet ad-hoc).
 
 ### 🟡 entity_enricher
 - `from_browser` con DuckDuckGo a veces queda 0 incluso cuando hay match (filtro lower-case + path_overlap demasiado estricto). Inspect cuando un canal oficial conocido no se identifica.
 
-### 🟡 script_finalizer
-- El gate `_TYPES_ANCHORABLE = {video, web_capture, photo}` excluye demasiado en vídeos cortos donde el LLM emite mayormente type=slide/mockup. En Mirofish (TikTok 51s) sobreviven solo 2 de 4 hints. Mejora propuesta: si tier=`rich` y NO hay alternativa visual para ese type, dejar pasar al anchor con score>0.6.
+### 🟢 script_finalizer
+- ~~Type gate excluye demasiado en vídeos cortos~~: corregido (commit del fix de variety penalty + source_ref).
+  - **Variety penalty**: og:images tienen 1 solo segmento → reusar el asset = `-0.55` siempre. Ahora la penalty `-0.40` por segmento sólo se aplica si el asset tiene >1 segmento.
+  - **source_ref bypass**: si `hint.source_ref` apunta a un slug del inventario, se anchora aunque los keyframe-subjects no incluyan literal `hint.subject` (el LLM ya hizo la asociación semántica). En modo pinned se neutralizan también el subject hard-gate y el ef-mismatch.
+  - Verificado en `mirofish_v12`: 5/5 hints anchored (antes 3/5), coverage 38.9% en target (antes 23.8%), real_footage 40% (antes 33%).
 
 ### 🟡 acquisition
 - yt-dlp ytsearch (filtro canales oficiales) y Ken Burns (foto → vídeo zoom-pan) no implementados. Solo Pexels + text_card.
@@ -88,22 +93,16 @@ TOTAL: 436 tests passing
 
 ## Lo que queda para producir el .mp4 final
 
-### Fase 12 — `subtitler` (siguiente próxima sesión)
+### ✅ Fase 12 — `subtitler` (terminada)
 
-**Input**: `transcript_polished.json` (word-level con timestamps) + opcionalmente `analysis_matched.json` (para hero_text en title beats).
+Output: `subtitles.srt` + `subtitles.ass` + `subtitle_clips.json`. Pure determinista, depends_on=polish, 12 tests verde, verificada contra `recording5_full` (721 cues word-by-word, 221.7s, ES).
 
-**Output**:
-- `subtitles.srt` (estándar)
-- `subtitles.ass` (karaoke word-by-word para CapCut/Remotion)
-- `subtitle_clips.json` (estructura para el compositor)
+Estilo embebido en el `SubtitleStyle` de `subtitle_clips.json` (font Montserrat Bold 64px, pill `&HBF000000`, y_anchor 0.78, fade 40/40 ms). El ASS es "best effort" para CapCut; el compositor (Remotion) renderiza la pill rounded a partir del JSON.
 
-Spec v4 (`pipeline_v4_frozen_20260423/BROLL_CREATIVE_SPEC.md`) define el estilo:
-- bold sans-serif (Inter Bold / Montserrat Bold)
-- pill negro semi-transparente
-- 1 word at a time, bottom third, centered
-- sync exacto al audio
-
-Pure determinista (sin LLM). Estimado: ½ jornada.
+Notas para Fase 13:
+- el JSON tiene `clips[].start_s/end_s/text/segment_index` ya saneados (no overlaps, micro-gaps rellenados, MIN_DUR_S=80ms)
+- `style.y_anchor_norm=0.78` ≡ centro vertical del texto en el bottom third
+- ASS emite los comas internos como `،` (U+060C) para no romper field sep — Remotion debe leer del JSON, no del ASS
 
 ### Fase 13 — `compositor`
 
