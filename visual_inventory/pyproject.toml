@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "visual_inventory"
+version = "0.1.0"
+description = "Phase 6 of myavatar v6 — extract keyframes + vision-classify each asset for the broll planner"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "analysis",
+    "llm",
+    "progress",
+]
+
+[project.scripts]
+visual-inventory = "visual_inventory.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/visual_inventory"]

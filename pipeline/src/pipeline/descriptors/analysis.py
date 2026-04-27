@@ -28,8 +28,14 @@ analysis_descriptor = PhaseDescriptor(
     depends_on=["polish"],
     on_failure="abort",
     retry_max=0,
-    timeout_s=600,
+    timeout_s=1200,   # 20 min: DeepSeek + 1 retry on validation error
     render_artifacts=[
+        RenderArtifact(
+            type="timeline",
+            title="Timeline (beats + b-roll)",
+            path="analysis.json",
+            options={},
+        ),
         RenderArtifact(
             type="key_value",
             title="Narrativa",
@@ -101,6 +107,29 @@ analysis_descriptor = PhaseDescriptor(
                     {"field": "kind", "label": "Kind", "badge": True},
                     {"field": "surface_forms", "label": "As heard"},
                     {"field": "official_urls", "label": "URLs"},
+                ],
+            },
+        ),
+        RenderArtifact(
+            type="json_table",
+            title="B-roll hints",
+            path="analysis.json",
+            options={
+                "root_path": "narrative.beats",
+                "flatten_field": "broll_hints",
+                "inherit_fields": ["beat_id"],
+                "columns": [
+                    {"field": "beat_id", "label": "Beat", "mono": True},
+                    {"field": "type", "label": "Type", "badge": True},
+                    {"field": "shot_type", "label": "Shot", "badge": True},
+                    {"field": "subject", "label": "Subject"},
+                    {"field": "query", "label": "Query", "truncate": 60},
+                    {"field": "queries_fallback", "label": "Fallbacks",
+                     "format": "join_csv", "truncate": 80},
+                    {"field": "duration_target_s", "label": "Dur"},
+                    {"field": "energy_match", "label": "Energy", "badge": True},
+                    {"field": "source_ref", "label": "Source ref", "mono": True},
+                    {"field": "description", "label": "Description", "truncate": 70},
                 ],
             },
         ),

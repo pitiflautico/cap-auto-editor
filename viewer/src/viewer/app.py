@@ -468,6 +468,182 @@ def _load_pipeline_manifest(run_path: Path) -> dict | None:
         return None
 
 
+_BROLL_TYPE_COLORS = {
+    "video":       "bg-rose-500",
+    "slide":       "bg-amber-500",
+    "web_capture": "bg-sky-500",
+    "photo":       "bg-emerald-500",
+    "pexels":      "bg-violet-500",
+    "mockup":      "bg-fuchsia-500",
+    "title":       "bg-slate-500",
+}
+_EF_COLORS = {
+    "hook":       "bg-indigo-100  text-indigo-800",
+    "pain":       "bg-rose-100    text-rose-800",
+    "solution":   "bg-emerald-100 text-emerald-800",
+    "proof":      "bg-cyan-100    text-cyan-800",
+    "value":      "bg-teal-100    text-teal-800",
+    "how_to":     "bg-amber-100   text-amber-800",
+    "thesis":     "bg-violet-100  text-violet-800",
+    "payoff":     "bg-fuchsia-100 text-fuchsia-800",
+    "transition": "bg-slate-100   text-slate-600",
+}
+
+
+def _build_timeline(analysis: dict, options: dict) -> dict | None:
+    """Transform an analysis.json into a flat timeline structure the
+    template can render with width-percentages.
+
+    Output shape:
+        {
+          "duration_s": 221.78,
+          "beats": [
+            {"id":"b001","start_s":0.0,"end_s":3.0,"width_pct":1.4,
+             "left_pct":0.0, "ef":"hook","ef_color":"...","text":"...",
+             "broll_hints":[
+                {"type":"video","color":"bg-rose-500",
+                 "left_pct":0.0,"width_pct":1.4,
+                 "subject":"Gemma 4","shot_type":"logo_centered",
+                 "query":"Gemma 4 logo","description":"..."},
+             ]
+            }
+          ]
+        }
+    """
+    narrative = analysis.get("narrative") if isinstance(analysis, dict) else None
+    if not narrative:
+        return None
+    duration = float(analysis.get("duration_s") or 0)
+    beats_raw = narrative.get("beats") or []
+    if not beats_raw:
+        return None
+    if duration <= 0:
+        # Derive from last beat
+        duration = max((float(b.get("end_s", 0) or 0) for b in beats_raw), default=0)
+    if duration <= 0:
+        return None
+
+    rows = []
+    type_counts: dict[str, int] = {}
+    hint_total_s = 0.0
+    hint_global_spans: list[tuple[float, float]] = []
+    flat_hints_for_audit: list[dict] = []
+    for beat in beats_raw:
+        try:
+            s = float(beat.get("start_s", 0))
+            e = float(beat.get("end_s", 0))
+        except (TypeError, ValueError):
+            continue
+        if e <= s:
+            continue
+        beat_dur = e - s
+        beat_left = round(100.0 * s / duration, 3)
+        beat_width = round(100.0 * beat_dur / duration, 3)
+        ef = beat.get("editorial_function", "")
+        hints_out = []
+        spans_in_beat: list[tuple[float, float]] = []
+        for h in beat.get("broll_hints") or []:
+            tin = float((h.get("timing") or {}).get("in_pct", 0.0))
+            tout = float((h.get("timing") or {}).get("out_pct", 1.0))
+            tin = max(0.0, min(1.0, tin))
+            tout = max(tin, min(1.0, tout))
+            hint_dur_s = beat_dur * (tout - tin)
+            hint_total_s += hint_dur_s
+            type_counts[h.get("type", "")] = type_counts.get(h.get("type", ""), 0) + 1
+            abs_start = s + beat_dur * tin
+            abs_end = s + beat_dur * tout
+            spans_in_beat.append((abs_start, abs_end))
+            hint_global_spans.append((abs_start, abs_end))
+            row_hint = {
+                "type": h.get("type", ""),
+                "color": _BROLL_TYPE_COLORS.get(h.get("type", ""), "bg-gray-400"),
+                "left_pct":  round(beat_width * tin, 3),
+                "width_pct": round(beat_width * (tout - tin), 3),
+                "subject": h.get("subject") or "",
+                "shot_type": h.get("shot_type") or "",
+                "query": h.get("query") or "",
+                "queries_fallback": h.get("queries_fallback") or [],
+                "description": h.get("description") or "",
+                "source_ref": h.get("source_ref") or "",
+                "duration_s": round(hint_dur_s, 2),
+                "duration_target_s": h.get("duration_target_s"),
+                "energy_match": h.get("energy_match") or "",
+                "abs_start_s": round(abs_start, 2),
+                "abs_end_s": round(abs_end, 2),
+            }
+            hints_out.append(row_hint)
+            flat_hints_for_audit.append({
+                "beat_id": beat.get("beat_id", ""),
+                **row_hint,
+            })
+
+        # In-beat overlap detection (two hints sharing time inside same beat)
+        overlap_in_beat = False
+        if len(spans_in_beat) >= 2:
+            sorted_spans = sorted(spans_in_beat)
+            for i in range(1, len(sorted_spans)):
+                if sorted_spans[i][0] < sorted_spans[i-1][1]:
+                    overlap_in_beat = True
+                    break
+
+        rows.append({
+            "id": beat.get("beat_id", ""),
+            "start_s": s,
+            "end_s": e,
+            "duration_s": round(beat_dur, 2),
+            "left_pct": beat_left,
+            "width_pct": beat_width,
+            "ef": ef,
+            "ef_color": _EF_COLORS.get(ef, "bg-slate-100 text-slate-600"),
+            "text": beat.get("text", ""),
+            "hero": beat.get("hero_text_candidate") or "",
+            "broll_hints": hints_out,
+            "n_hints": len(hints_out),
+            "overloaded": len(hints_out) >= 3,
+            "no_broll": len(hints_out) == 0,
+            "overlap_in_beat": overlap_in_beat,
+        })
+
+    # Coverage = union of all hint spans / duration
+    coverage_s = 0.0
+    if hint_global_spans:
+        sorted_spans = sorted(hint_global_spans)
+        cur_s, cur_e = sorted_spans[0]
+        for ns, ne in sorted_spans[1:]:
+            if ns <= cur_e:
+                cur_e = max(cur_e, ne)
+            else:
+                coverage_s += cur_e - cur_s
+                cur_s, cur_e = ns, ne
+        coverage_s += cur_e - cur_s
+
+    minutes = duration / 60.0 if duration > 0 else 1.0
+    target_min = max(1, round(minutes * 3))
+    target_max = max(target_min, round(minutes * 5))
+
+    total_hints = sum(r["n_hints"] for r in rows)
+    stats = {
+        "total_hints": total_hints,
+        "hints_per_min": round(total_hints / minutes, 1) if minutes else 0,
+        "target_min": target_min,
+        "target_max": target_max,
+        "coverage_s": round(coverage_s, 2),
+        "coverage_pct": round(100.0 * coverage_s / duration, 1) if duration else 0,
+        "hint_total_s": round(hint_total_s, 2),  # raw sum (counts overlaps twice)
+        "type_counts": dict(sorted(type_counts.items(), key=lambda kv: -kv[1])),
+        "beats_no_broll": sum(1 for r in rows if r["no_broll"]),
+        "beats_overloaded": sum(1 for r in rows if r["overloaded"]),
+        "beats_with_overlap": sum(1 for r in rows if r["overlap_in_beat"]),
+    }
+
+    return {
+        "duration_s": duration,
+        "beats": rows,
+        "stats": stats,
+        "all_hints": flat_hints_for_audit,
+    }
+
+
 def _resolve_field(obj: Any, field: str) -> Any:
     """Resolve a dotted field path like 'request.slug' from a nested dict."""
     parts = field.split(".")
@@ -509,6 +685,25 @@ def _render_artifact(artifact: dict, phase_dir: Path) -> dict:
                 rows = raw
             else:
                 rows = None
+
+            # Optional flatten: when each row contains a list field, expand it
+            # so each nested item becomes its own row (used for broll_hints
+            # which are list[BrollHint] per beat). Selected parent fields are
+            # copied onto each child via `inherit_fields`.
+            flatten_field = options.get("flatten_field")
+            if flatten_field and isinstance(rows, list):
+                inherit = options.get("inherit_fields", [])
+                expanded: list[dict] = []
+                for parent in rows:
+                    if not isinstance(parent, dict):
+                        continue
+                    inherited = {k: parent.get(k) for k in inherit}
+                    for child in (parent.get(flatten_field) or []):
+                        if not isinstance(child, dict):
+                            continue
+                        expanded.append({**inherited, **child})
+                rows = expanded
+
             columns = options.get("columns", [])
             result["rows"] = _process_table_rows(rows, columns) if rows is not None else None
             result["columns"] = columns
@@ -524,6 +719,9 @@ def _render_artifact(artifact: dict, phase_dir: Path) -> dict:
                 result["kv_items"] = None
         elif atype == "text_preview":
             result["text"] = _safe_text(full_path, max_chars=options.get("max_chars", 400))
+        elif atype == "timeline":
+            raw = _safe_json(full_path)
+            result["timeline"] = _build_timeline(raw, options) if raw else None
 
     if path_pattern:
         pattern = str(phase_dir / path_pattern)

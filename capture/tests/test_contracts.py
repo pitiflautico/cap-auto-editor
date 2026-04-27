@@ -158,7 +158,7 @@ class TestCaptureManifest:
             backend_default="browser_sdk",
         )
         back = CaptureManifest.model_validate_json(m.model_dump_json())
-        assert back.schema_version == "2.0.0"
+        assert back.schema_version == "2.1.0"
         assert back.results == []
 
     def test_with_results(self):

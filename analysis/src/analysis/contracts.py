@@ -44,6 +44,21 @@ class BrollHint(BaseModel):
     ] | None = None
     energy_match: Literal["high", "medium", "low"]
     source_ref: str | None = None
+    # v1.5 — structured search hints consumed by broll_resolver. All optional
+    # (None defaults), so older analyses round-trip without changes. The LLM
+    # fills these to guide the source cascade (X / Reddit / Pexels / YouTube
+    # via neobrowser); empty/None means "fall back to free-text description".
+    query: str | None = None
+    queries_fallback: list[str] = Field(default_factory=list)
+    subject: str | None = None
+    # Camera/composition hint. The renderer/resolver maps these to provider-
+    # specific filters: "logo_centered" → Google Images "logo png"; "screen_recording"
+    # → product UI demo; "portrait" → Pexels orientation=portrait; etc.
+    shot_type: Literal[
+        "close_up", "wide", "macro_animation", "screen_recording",
+        "logo_centered", "portrait", "drone_aerial", "abstract",
+    ] | None = None
+    duration_target_s: float | None = None
 
 
 class ArcAct(BaseModel):
@@ -92,6 +107,13 @@ class Entity(BaseModel):
     kind: Literal["product", "company", "person", "platform", "sector", "concept"]
     mentioned_in_beats: list[str]
     official_urls: list[str] = []
+    # v1.6 — populated by entity_enricher (post-analysis phase). Keys are
+    # platform names ("x", "reddit", "youtube", "instagram", "github"); values
+    # are lists of verified handles ("@googleai", "r/Bard", "@google").
+    # Empty when entity is not enrichable or no platform yielded a result.
+    # The analysis phase ALWAYS leaves this empty — the LLM never invents
+    # handles. Lookup is deterministic (sources URLs + browser search).
+    official_handles: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class Narrative(BaseModel):
@@ -199,7 +221,7 @@ class ValidationReport(BaseModel):
 class AnalysisResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: str = "1.4.0"
+    schema_version: str = "1.6.0"
     created_at: datetime
     transcript_ref: str             # path to transcript_polished.json
     capture_manifest_ref: str | None

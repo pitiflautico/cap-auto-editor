@@ -10,14 +10,16 @@ from pydantic import BaseModel, field_validator
 # ── RenderArtifact ──────────────────────────────────────────────────
 
 VALID_ARTIFACT_TYPES = frozenset(
-    {"transcript", "json_table", "image_gallery", "text_preview", "key_value", "iframe"}
+    {"transcript", "json_table", "image_gallery", "text_preview", "key_value",
+     "iframe", "timeline"}
 )
 
 
 class RenderArtifact(BaseModel):
     """Descriptor for a single piece of renderable output in the viewer."""
 
-    type: Literal["transcript", "json_table", "image_gallery", "text_preview", "key_value", "iframe"]
+    type: Literal["transcript", "json_table", "image_gallery", "text_preview",
+                  "key_value", "iframe", "timeline"]
     title: str
     path: str | None = None          # relative to phase out_subdir
     path_pattern: str | None = None  # glob relative to phase out_subdir

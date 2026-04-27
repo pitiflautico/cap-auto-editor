@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "script_finalizer"
+version = "0.1.0"
+description = "Phase 7 of myavatar v6 — adaptive broll/talking-head balancer using industry baselines + visual_inventory"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "analysis",
+    "visual_inventory",
+    "progress",
+]
+
+[project.scripts]
+script-finalizer = "script_finalizer.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/script_finalizer"]

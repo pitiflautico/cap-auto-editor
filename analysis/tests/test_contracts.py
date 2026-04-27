@@ -147,6 +147,35 @@ def test_broll_hint_roundtrip_all_fields():
     assert h.capcut_effect == "zoom_in_punch"
     assert h.energy_match == "high"
     assert h.source_ref == "fooproduct-homepage"
+    # v1.5 fields default to None / [] when not provided — older analyses round-trip
+    assert h.query is None
+    assert h.queries_fallback == []
+    assert h.subject is None
+    assert h.shot_type is None
+    assert h.duration_target_s is None
+
+
+def test_broll_hint_with_v1_5_search_hints():
+    h = BrollHint(
+        **VALID_BROLL_HINT,
+        query="MiroFish demo simulation",
+        queries_fallback=["MiroFish predictive AI", "swarm intelligence demo"],
+        subject="MiroFish",
+        shot_type="screen_recording",
+        duration_target_s=3.5,
+    )
+    assert h.query == "MiroFish demo simulation"
+    assert len(h.queries_fallback) == 2
+    assert h.subject == "MiroFish"
+    assert h.shot_type == "screen_recording"
+    assert h.duration_target_s == 3.5
+
+
+def test_broll_hint_rejects_invalid_shot_type():
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        BrollHint(**VALID_BROLL_HINT, shot_type="ultra_wide_4k")
 
 
 def test_broll_timing_defaults():
@@ -204,7 +233,7 @@ def test_arc_act_topic_focus_with_values():
     assert act.topic_focus == ["foo_product", "bar_company"]
 
 
-def test_analysis_result_schema_version_default_1_4_0():
+def test_analysis_result_schema_version_default_1_6_0():
     import json
     result = AnalysisResult(
         created_at=datetime.now(timezone.utc),
@@ -217,4 +246,4 @@ def test_analysis_result_schema_version_default_1_4_0():
         narrative=Narrative(**VALID_NARRATIVE),
     )
     d = json.loads(result.model_dump_json())
-    assert d["schema_version"] == "1.4.0"
+    assert d["schema_version"] == "1.6.0"

@@ -209,6 +209,148 @@
             {% elif art.type == 'iframe' %}
               <div class="mt-3 text-sm text-slate-400 italic">(iframe not yet supported)</div>
 
+            {# timeline — visual beats + broll_hints #}
+            {% elif art.type == 'timeline' %}
+              {% if art.timeline %}
+                {% set tl = art.timeline %}
+                {% set st = tl.stats %}
+                <div class="mt-3">
+                  {# Top stats bar #}
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+                    <div class="bg-slate-50 rounded px-2 py-1">
+                      <div class="text-slate-400">Duración</div>
+                      <div class="font-semibold">{{ "%.1f"|format(tl.duration_s) }}s</div>
+                    </div>
+                    <div class="bg-slate-50 rounded px-2 py-1">
+                      <div class="text-slate-400">Beats</div>
+                      <div class="font-semibold">{{ tl.beats|length }}</div>
+                    </div>
+                    <div class="bg-slate-50 rounded px-2 py-1">
+                      <div class="text-slate-400">B-roll hints</div>
+                      <div class="font-semibold">
+                        {{ st.total_hints }}
+                        <span class="text-slate-400 font-normal">({{ st.hints_per_min }}/min)</span>
+                      </div>
+                      <div class="text-slate-400 text-[10px]">target {{ st.target_min }}–{{ st.target_max }}</div>
+                    </div>
+                    <div class="bg-slate-50 rounded px-2 py-1">
+                      <div class="text-slate-400">Cobertura b-roll</div>
+                      <div class="font-semibold">{{ st.coverage_pct }}%</div>
+                      <div class="text-slate-400 text-[10px]">{{ st.coverage_s }}s de {{ "%.1f"|format(tl.duration_s) }}s</div>
+                    </div>
+                  </div>
+
+                  {# Quality flags #}
+                  {% set warnings = [] %}
+                  {% if st.total_hints < st.target_min %}{% set _ = warnings.append('Pocos hints: ' ~ st.total_hints ~ ' < target ' ~ st.target_min) %}{% endif %}
+                  {% if st.total_hints > st.target_max %}{% set _ = warnings.append('Demasiados hints: ' ~ st.total_hints ~ ' > target ' ~ st.target_max) %}{% endif %}
+                  {% if st.beats_overloaded > 0 %}{% set _ = warnings.append(st.beats_overloaded ~ ' beats con 3+ hints (sobrecargados)') %}{% endif %}
+                  {% if st.beats_with_overlap > 0 %}{% set _ = warnings.append(st.beats_with_overlap ~ ' beats con hints solapados') %}{% endif %}
+                  {% if warnings %}
+                    <div class="mb-3 px-3 py-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                      <div class="font-semibold mb-1">⚠ Avisos editoriales</div>
+                      <ul class="list-disc list-inside space-y-0.5">
+                        {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
+
+                  {# Type distribution badges #}
+                  {% if st.type_counts %}
+                    <div class="flex flex-wrap gap-2 text-xs mb-3 items-center">
+                      <span class="text-slate-500">Distribución:</span>
+                      {% for t, n in st.type_counts.items() %}
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100">
+                          <span class="inline-block w-2.5 h-2.5 rounded-sm
+                            {% if t == 'video' %}bg-rose-500
+                            {% elif t == 'slide' %}bg-amber-500
+                            {% elif t == 'web_capture' %}bg-sky-500
+                            {% elif t == 'photo' %}bg-emerald-500
+                            {% elif t == 'pexels' %}bg-violet-500
+                            {% elif t == 'mockup' %}bg-fuchsia-500
+                            {% elif t == 'title' %}bg-slate-500
+                            {% else %}bg-gray-400{% endif %}"></span>
+                          {{ t }} <span class="font-semibold">×{{ n }}</span>
+                        </span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                  {# Timeline rows: one row per beat #}
+                  <div class="space-y-1">
+                    {% for b in tl.beats %}
+                      <div class="relative h-12">
+                        <div class="absolute top-0 h-6 rounded text-xs px-1 leading-6 truncate {{ b.ef_color }} border border-slate-200
+                          {% if b.overlap_in_beat %}ring-2 ring-amber-400{% endif %}"
+                             style="left: {{ b.left_pct }}%; width: {{ b.width_pct }}%;"
+                             title="{{ b.id }} · {{ b.ef }} · {{ '%.1f'|format(b.start_s) }}-{{ '%.1f'|format(b.end_s) }}s ({{ b.duration_s }}s) · {{ b.text }}">
+                          <span class="font-mono">{{ b.id }}</span> · {{ b.ef }}
+                          <span class="text-[10px] opacity-70">{{ b.duration_s }}s</span>
+                          {% if b.no_broll %}<span class="text-[10px] opacity-60">○</span>{% endif %}
+                        </div>
+                        <div class="absolute top-7 h-4"
+                             style="left: {{ b.left_pct }}%; width: {{ b.width_pct }}%;">
+                          {% for h in b.broll_hints %}
+                            <div class="absolute top-0 h-4 rounded {{ h.color }} text-[10px] text-white px-1 leading-4 truncate cursor-help"
+                                 style="left: {{ h.left_pct }}%; width: {{ h.width_pct }}%;"
+                                 title="{{ h.type }}{% if h.shot_type %} · {{ h.shot_type }}{% endif %}{% if h.subject %} · {{ h.subject }}{% endif %}&#10;{{ h.duration_s }}s ({{ h.abs_start_s }}–{{ h.abs_end_s }}s){% if h.query %}&#10;query: {{ h.query }}{% endif %}{% if h.description %}&#10;{{ h.description }}{% endif %}{% if h.source_ref %}&#10;source_ref: {{ h.source_ref }}{% endif %}">
+                              {{ h.type }}{% if h.subject %} · {{ h.subject }}{% endif %}
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                  <div class="relative h-4 mt-2 text-[10px] text-slate-400">
+                    {% for pct in [0, 25, 50, 75, 100] %}
+                      <span class="absolute" style="left: {{ pct }}%; transform: translateX(-50%);">
+                        {{ '%.0f'|format(tl.duration_s * pct / 100) }}s
+                      </span>
+                    {% endfor %}
+                  </div>
+
+                  {# Detailed hint list #}
+                  {% if tl.all_hints %}
+                    <details class="mt-6">
+                      <summary class="cursor-pointer text-sm font-semibold text-slate-700 select-none">
+                        Lista detallada de b-roll hints ({{ tl.all_hints|length }})
+                      </summary>
+                      <div class="mt-2 space-y-2 text-xs">
+                        {% for h in tl.all_hints %}
+                          <div class="border border-slate-200 rounded px-3 py-2 bg-white">
+                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                              <span class="font-mono">{{ h.beat_id }}</span>
+                              <span class="px-1.5 rounded text-white {{ h.color }}">{{ h.type }}</span>
+                              {% if h.shot_type %}<span class="px-1.5 rounded bg-slate-100">{{ h.shot_type }}</span>{% endif %}
+                              {% if h.subject %}<span class="text-slate-700">→ <strong>{{ h.subject }}</strong></span>{% endif %}
+                              <span class="ml-auto text-slate-400">
+                                {{ h.abs_start_s }}–{{ h.abs_end_s }}s ({{ h.duration_s }}s
+                                {%- if h.duration_target_s %} · target {{ h.duration_target_s }}s{% endif -%}
+                                )
+                              </span>
+                            </div>
+                            {% if h.query %}
+                              <div class="mb-0.5"><span class="text-slate-400">query:</span> <span class="mono">{{ h.query }}</span></div>
+                            {% endif %}
+                            {% if h.queries_fallback %}
+                              <div class="mb-0.5"><span class="text-slate-400">fallback:</span> <span class="mono text-slate-500">{{ h.queries_fallback|join(' / ') }}</span></div>
+                            {% endif %}
+                            {% if h.description %}
+                              <div class="text-slate-700">{{ h.description }}</div>
+                            {% endif %}
+                            {% if h.source_ref %}
+                              <div class="text-slate-400">source_ref: <span class="mono">{{ h.source_ref }}</span></div>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </details>
+                  {% endif %}
+                </div>
+              {% else %}
+                <span class="text-slate-400 text-sm italic">(timeline data not available)</span>
+              {% endif %}
+
             {% else %}
               <span class="text-slate-400 text-sm italic">(unknown artifact type: {{ art.type }})</span>
             {% endif %}

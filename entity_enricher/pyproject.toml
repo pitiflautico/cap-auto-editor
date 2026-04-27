@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "entity_enricher"
+version = "0.1.0"
+description = "Phase 4 of myavatar v6 — derive official platform handles for entities"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "analysis",
+    "progress",
+]
+
+[project.scripts]
+entity-enricher = "entity_enricher.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/entity_enricher"]

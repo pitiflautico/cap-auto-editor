@@ -2,12 +2,24 @@
 from __future__ import annotations
 
 from pipeline.contracts import PhaseDescriptor
-from pipeline.descriptors import capture_descriptor, polish_descriptor, analysis_descriptor
+from pipeline.descriptors import (
+    analysis_descriptor,
+    auto_source_descriptor,
+    broll_resolver_descriptor,
+    capture_descriptor,
+    entity_enricher_descriptor,
+    polish_descriptor,
+    script_finalizer_descriptor,
+    visual_inventory_descriptor,
+)
 
 PIPELINE_PHASES: list[PhaseDescriptor] = [
     capture_descriptor,
     polish_descriptor,
     analysis_descriptor,
-    # broll_plan_descriptor,   # future
-    # builder_descriptor,      # future
+    entity_enricher_descriptor,
+    auto_source_descriptor,
+    visual_inventory_descriptor,
+    script_finalizer_descriptor,
+    broll_resolver_descriptor,
 ]

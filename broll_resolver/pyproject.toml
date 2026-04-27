@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "broll_resolver"
+version = "0.1.0"
+description = "Phase 8 of myavatar v6 — resolve broll hints to absolute asset paths or list pending acquisitions"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "analysis",
+    "visual_inventory",
+    "progress",
+]
+
+[project.scripts]
+broll-resolver = "broll_resolver.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/broll_resolver"]

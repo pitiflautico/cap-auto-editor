@@ -133,12 +133,16 @@ class BrowserSdkBackend:
         viewport_h: int = 1600,
         wait_s: float = 3.0,
         save_raw_html: bool = False,
+        media: bool = True,
+        max_media_per_capture: int = 3,
     ) -> None:
         self.profile = profile
         self.viewport_w = viewport_w
         self.viewport_h = viewport_h
         self.wait_s = wait_s
         self.save_raw_html = save_raw_html
+        self.media = media
+        self.max_media_per_capture = max_media_per_capture
 
     def accepts(
         self, request: CaptureRequest, content_type: str | None
@@ -262,6 +266,40 @@ class BrowserSdkBackend:
             raw_path = artifact_dir / "raw.html"
             raw_path.write_text(html, encoding="utf-8")
             artifacts.raw_html_path = "raw.html"
+
+        if self.media:
+            try:
+                from ..extractors.media import detect_media
+                from ..media_downloader import DownloadContext, download_candidates
+                from ..media_audit import audit_capture, write_audit
+                cands = detect_media(html, request.normalized_url)
+                if cands:
+                    artifacts.assets = download_candidates(
+                        cands,
+                        DownloadContext(out_dir=artifact_dir),
+                        max_per_capture=self.max_media_per_capture,
+                    )
+                # Always audit — even when no candidates were found that's a
+                # signal the page only exposes text+screenshot.
+                audit = audit_capture(
+                    html, request.normalized_url, request.slug,
+                    artifacts.assets,
+                    max_per_capture=self.max_media_per_capture,
+                )
+                write_audit(audit, artifact_dir)
+                artifacts.media_audit_path = "media_audit.json"
+                if audit.warnings:
+                    import logging
+                    logging.getLogger("capture.media").warning(
+                        "media audit for %s: %s",
+                        request.slug, "; ".join(audit.warnings),
+                    )
+            except Exception as exc:
+                # Media + audit are opportunistic: never fail the capture.
+                import logging
+                logging.getLogger("capture.media").warning(
+                    "media extraction failed for %s: %s", request.slug, exc
+                )
 
         return CaptureResult(
             request=request,

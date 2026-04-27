@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "auto_source"
+version = "0.1.0"
+description = "Phase 5 of myavatar v6 — auto-discover official URLs per topic + recapture"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "analysis",
+    "entity_enricher",
+    "progress",
+]
+
+[project.scripts]
+auto-source = "auto_source.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/auto_source"]

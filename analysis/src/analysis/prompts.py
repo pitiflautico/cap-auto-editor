@@ -59,6 +59,19 @@ Each hint:
 - capcut_effect ∈ {zoom_in_punch, glitch_rgb, logo_reveal, velocity_edit, mask_reveal, split_screen, slow_motion, flicker, null}
 - energy_match ∈ {high, medium, low} — aligns with beat.energy.
 - source_ref: a source slug from <sources> if the ideal visual is already captured; else null (broll_plan fetches it).
+- query: 4-8 word search string the broll_resolver will feed to X / Reddit / Pexels / YouTube via neobrowser. Use ENGLISH for stock providers (Pexels) regardless of LANG; use LANG for platform searches when the topic is local. Bad: "tech video". Good: "MiroFish predictive AI dashboard". Null only when type=title (text overlay needs no search).
+- queries_fallback: 1-3 alternative phrasings if the primary query yields nothing. Vary one signal each: subject synonym, shot framing, action verb. Empty list if confident in `query`.
+- subject: the canonical entity this hint visualises (e.g. "MiroFish", "Gemma 4", "Apple Silicon"). Must match a `canonical` from the `entities` list. Null only for purely abstract/atmosphere hints.
+- shot_type ∈ {close_up, wide, macro_animation, screen_recording, logo_centered, portrait, drone_aerial, abstract, null} — guides the resolver:
+  · screen_recording = product UI demo, app capture
+  · logo_centered    = brand logo on dark background
+  · close_up         = product detail, hand-on-device
+  · portrait         = person, talking head
+  · drone_aerial     = wide architectural / landscape
+  · macro_animation  = chart, infographic, kinetic graphic
+  · wide             = generic wide shot, scene-setter
+  · abstract         = mood / concept (use sparingly)
+- duration_target_s: how long the asset should ideally be (1.5–6s typical). Null lets the resolver pick.
 
 ## Entities — link to canonical URLs from <sources> when possible
 - For each entity (canonical), populate `official_urls` with any URL from the <sources> block whose `URL:` clearly belongs to that entity. Match by canonical name, slug, or domain (e.g. canonical "MiroFish" matches a source with slug "mirofish-my" or url "https://mirofish.my/").
@@ -90,7 +103,7 @@ Each hint:
     "audience": "<1 frase>",
     "tone": "<1 frase>",
     "arc_acts": [{"name":"Hook|Setup|Problem|Pain|Solution|Value|Proof|Payoff|Closure|CTA|Convergencia|Comparison (suffix '(<topic_id>)' if multi-story)","start_s":0.0,"end_s":0.0,"purpose":"<frase>","topic_focus":["<topic_id>"]}],
-    "beats": [{"beat_id":"b001","start_s":0.0,"end_s":0.0,"text":"<literal>","editorial_function":"hook|pain|solution|proof|value|how_to|thesis|payoff|transition","hero_text_candidate":"<2-9 words Sentence case or null>","energy":"high|medium|low","references_topic_ids":["<topic_id>"],"broll_hints":[{"type":"video|slide|web_capture|photo|pexels|mockup|title","description":"<concrete visual>","timing":{"in_pct":0.0,"out_pct":1.0},"capcut_effect":"zoom_in_punch|glitch_rgb|logo_reveal|velocity_edit|mask_reveal|split_screen|slow_motion|flicker|null","energy_match":"high|medium|low","source_ref":"<slug or null>"}]}],
+    "beats": [{"beat_id":"b001","start_s":0.0,"end_s":0.0,"text":"<literal>","editorial_function":"hook|pain|solution|proof|value|how_to|thesis|payoff|transition","hero_text_candidate":"<2-9 words Sentence case or null>","energy":"high|medium|low","references_topic_ids":["<topic_id>"],"broll_hints":[{"type":"video|slide|web_capture|photo|pexels|mockup|title","description":"<concrete visual>","timing":{"in_pct":0.0,"out_pct":1.0},"capcut_effect":"zoom_in_punch|glitch_rgb|logo_reveal|velocity_edit|mask_reveal|split_screen|slow_motion|flicker|null","energy_match":"high|medium|low","source_ref":"<slug or null>","query":"<4-8 word search or null>","queries_fallback":["<alt query>", "..."],"subject":"<entity canonical or null>","shot_type":"close_up|wide|macro_animation|screen_recording|logo_centered|portrait|drone_aerial|abstract|null","duration_target_s":3.0}]}],
     "topics": [{"topic_id":"<snake>","label":"<as in video>","description":"<1-2 frases>","role":"main|supporting","kind":"product|company|person|concept|platform|sector|event","mentioned_in_beats":["<beat_id>"]}],
     "entities": [{"canonical":"<preferred>","surface_forms":["<as heard>"],
         "kind": "<product|company|person|platform|sector|concept>",
