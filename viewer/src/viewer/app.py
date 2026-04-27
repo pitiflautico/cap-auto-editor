@@ -992,6 +992,32 @@ def pipeline_screenshot(pipeline_name: str, phase_name: str, slug: str):
     return FileResponse(img_path, media_type="image/png")
 
 
+@app.api_route("/pipeline/{pipeline_name}/{phase_name}/file/{rel_path:path}", methods=["GET", "HEAD"])
+def pipeline_file(pipeline_name: str, phase_name: str, rel_path: str):
+    """Generic phase-dir file server — used by image_gallery (storyboard
+    thumbs etc.). Refuses to serve outside the phase directory.
+    """
+    pipeline = _find_pipeline(pipeline_name)
+    phase = next((ph for ph in pipeline["phases"] if ph["name"] == phase_name), None)
+    if phase is None:
+        raise HTTPException(status_code=404, detail="phase not found")
+    phase_dir: Path = phase["path"]
+    target = (phase_dir / rel_path).resolve()
+    base = phase_dir.resolve()
+    if not str(target).startswith(str(base)):
+        raise HTTPException(status_code=400, detail="invalid path")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    suf = target.suffix.lower()
+    media_type = {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif",
+        ".mp4": "video/mp4", ".webm": "video/webm",
+        ".txt": "text/plain", ".json": "application/json",
+    }.get(suf, "application/octet-stream")
+    return FileResponse(target, media_type=media_type)
+
+
 @app.get("/pipeline/{pipeline_name}/{phase_name}/text/{slug}")
 def pipeline_text(pipeline_name: str, phase_name: str, slug: str):
     pipeline = _find_pipeline(pipeline_name)

@@ -158,19 +158,20 @@
                 <span class="text-slate-400 text-sm italic">(not available yet)</span>
               {% endif %}
 
-            {# image_gallery #}
+            {# image_gallery — uses generic /file/ endpoint with rel-to-phase path #}
             {% elif art.type == 'image_gallery' %}
               {% if art.images %}
                 <div class="flex flex-wrap gap-3 mt-3">
-                  {% for img_path in art.images[:20] %}
-                    {% set slug = img_path.parent.name %}
+                  {% for img_path in art.images[:40] %}
+                    {% set rel = img_path.relative_to(ph.path) %}
+                    {% set label = rel.parent.name if rel.parent.name else rel.stem %}
                     <div>
-                      <img src="/pipeline/{{ pipeline.name }}/{{ ph.name }}/screenshot/{{ slug }}"
-                           alt="{{ slug }}"
-                           class="h-16 w-24 object-cover rounded border border-slate-200 cursor-pointer"
+                      <img src="/pipeline/{{ pipeline.name }}/{{ ph.name }}/file/{{ rel }}"
+                           alt="{{ rel }}"
+                           class="h-24 w-auto max-w-40 object-cover rounded border border-slate-200 cursor-pointer"
                            loading="lazy"
                            onclick="window.open(this.src,'_blank')">
-                      <div class="mono text-xs text-slate-500 mt-0.5 max-w-24 truncate" title="{{ slug }}">{{ slug }}</div>
+                      <div class="mono text-xs text-slate-500 mt-0.5 max-w-40 truncate" title="{{ rel }}">{{ label }}</div>
                     </div>
                   {% endfor %}
                 </div>
