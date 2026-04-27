@@ -28,6 +28,8 @@ log = logging.getLogger("visual_inventory.inventory")
 
 
 _VIDEO_EXTS = {".mp4", ".webm", ".mov", ".mkv"}
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_IMAGE_KINDS = {"og_image", "gif", "favicon"}
 
 
 def _segments_from_keyframes(kfs: list[Keyframe], duration_s: float) -> list[Segment]:
@@ -61,6 +63,55 @@ def _segments_from_keyframes(kfs: list[Keyframe], duration_s: float) -> list[Seg
             ))
             cur_start_idx = i
     return out
+
+
+def inventory_image_asset(
+    asset_path: Path,
+    slug: str,
+    relative_to: Path,
+    *,
+    vision_fn: Callable | None = None,
+) -> AssetInventory | None:
+    """Inventory a single image asset (og:image, gif, favicon).
+
+    Treats the image as a single 'frame at t=0' so the rest of the
+    pipeline (script_finalizer, broll_resolver) can score it the same way
+    it scores video segments. The inventory has duration_s=None and one
+    keyframe = the image itself; best_segments has one entry covering the
+    full asset.
+    """
+    if not asset_path.exists():
+        return None
+
+    # Read dims via PIL — cheap; falls back gracefully.
+    width: int | None = None
+    height: int | None = None
+    try:
+        from PIL import Image       # type: ignore
+        with Image.open(asset_path) as im:
+            width, height = im.size
+    except Exception:
+        pass
+
+    kf = analyze_frame(asset_path, t_s=0.0, vision_fn=vision_fn)
+    shot_types_seen = [kf.shot_type] if kf.shot_type else []
+    segments = [Segment(
+        t_start_s=0.0, t_end_s=0.0, shot_type=kf.shot_type,
+        description=kf.description, quality=kf.quality,
+        score=kf.quality / 5.0,
+    )]
+
+    return AssetInventory(
+        slug=slug,
+        asset_path=str(asset_path.relative_to(relative_to / "captures" / slug)),
+        duration_s=None, width=width, height=height,
+        keyframes=[kf],
+        shot_types_seen=shot_types_seen,
+        has_any_baked_text=kf.has_baked_text,
+        overall_quality=kf.quality,
+        summary=kf.description if kf.description != "(empty)" else "",
+        best_segments=segments,
+    )
 
 
 def inventory_asset(
@@ -97,7 +148,7 @@ def inventory_asset(
     if not frames:
         return AssetInventory(
             slug=slug,
-            asset_path=str(asset_path.relative_to(relative_to)),
+            asset_path=str(asset_path.relative_to(relative_to / "captures" / slug)),
             duration_s=duration,
             width=info.get("width"),
             height=info.get("height"),
@@ -132,7 +183,7 @@ def inventory_asset(
 
     return AssetInventory(
         slug=slug,
-        asset_path=str(asset_path.relative_to(relative_to)),
+        asset_path=str(asset_path.relative_to(relative_to / "captures" / slug)),
         duration_s=duration,
         width=info.get("width"),
         height=info.get("height"),
@@ -178,24 +229,34 @@ def build_inventory(
         for asset in artifacts.get("assets") or []:
             kind = asset.get("kind")
             rel_path = asset.get("path") or ""
-            if kind != "video":
-                continue
             asset_path = captures_root / "captures" / slug / rel_path
-            if asset_path.suffix.lower() not in _VIDEO_EXTS:
-                inv.skipped.append({"path": str(asset_path), "reason": "non_video_ext"})
-                continue
-            # Thumbs go INSIDE the phase out_dir so the viewer can serve them
-            # via a simple path_pattern image_gallery — no extra endpoint
-            # needed. Path: <out_dir>/thumbs/<slug>/<asset_stem>/kf_*.jpg.
-            thumb_dir = out_dir / "thumbs" / slug / asset_path.stem
-            asset_inv = inventory_asset(
-                asset_path, slug, captures_root, thumb_dir,
-                start_s=start_s, step_s=step_s, max_s=max_s,
-                vision_fn=vision_fn,
-                parallel_workers=parallel_workers,
-            )
-            if asset_inv is None:
-                inv.skipped.append({"path": str(asset_path), "reason": "probe_failed"})
+
+            if kind == "video":
+                if asset_path.suffix.lower() not in _VIDEO_EXTS:
+                    inv.skipped.append({"path": str(asset_path), "reason": "non_video_ext"})
+                    continue
+                thumb_dir = out_dir / "thumbs" / slug / asset_path.stem
+                asset_inv = inventory_asset(
+                    asset_path, slug, captures_root, thumb_dir,
+                    start_s=start_s, step_s=step_s, max_s=max_s,
+                    vision_fn=vision_fn,
+                    parallel_workers=parallel_workers,
+                )
+                if asset_inv is None:
+                    inv.skipped.append({"path": str(asset_path), "reason": "probe_failed"})
+                    continue
+            elif kind in _IMAGE_KINDS:
+                if asset_path.suffix.lower() not in _IMAGE_EXTS:
+                    inv.skipped.append({"path": str(asset_path), "reason": "non_image_ext"})
+                    continue
+                asset_inv = inventory_image_asset(
+                    asset_path, slug, captures_root, vision_fn=vision_fn,
+                )
+                if asset_inv is None:
+                    inv.skipped.append({"path": str(asset_path), "reason": "image_load_failed"})
+                    continue
+            else:
+                inv.skipped.append({"path": str(asset_path), "reason": f"unsupported_kind:{kind}"})
                 continue
             inv.assets.append(asset_inv)
 

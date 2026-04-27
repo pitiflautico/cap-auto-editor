@@ -94,12 +94,19 @@ def _resolve_one(
         t2 = float(m.group("t2"))
         abs_p = _abs(captures_root, slug, rel_path)
         if abs_p.exists():
+            # Detect kind from file extension — anchor can target images
+            # (og:image entries in visual_inventory) as well as videos.
+            kind: str = "image" if abs_p.suffix.lower() in {
+                ".jpg", ".jpeg", ".png", ".webp", ".gif"
+            } else "video"
             return ResolvedAsset(
                 **common_kwargs, type=hint.type,
-                kind="video", source="anchor_in_inventory",
+                kind=kind, source="anchor_in_inventory",            # type: ignore[arg-type]
                 abs_path=str(abs_p), slug=slug,
-                t_start_s=t1, t_end_s=t2,
-                duration_s=round(max(0.0, t2 - t1), 2),
+                t_start_s=t1 if kind == "video" else None,
+                t_end_s=t2 if kind == "video" else None,
+                duration_s=(round(max(0.0, t2 - t1), 2)
+                            if kind == "video" else None),
             )
 
     # 2) source_ref → first video asset

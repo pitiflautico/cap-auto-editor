@@ -37,7 +37,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     n_video_assets = sum(
         1 for r in capture_manifest.get("results", [])
         for a in (r.get("artifacts") or {}).get("assets", [])
-        if a.get("kind") == "video"
+        if a.get("kind") in {"video", "og_image", "gif"}
     )
     emitter.emit_step_done(
         index=1, name="load",
@@ -73,7 +73,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     print(f"  errors                : {len(inv.errors)}")
     for a in inv.assets:
         sf = ", ".join(a.shot_types_seen) or "—"
-        print(f"  - {a.slug}/{Path(a.asset_path).name}  ({a.duration_s:.1f}s, q={a.overall_quality}, shots=[{sf}], segments={len(a.best_segments)})")
+        dur = f"{a.duration_s:.1f}s" if a.duration_s is not None else "image"
+        print(f"  - {a.slug}/{Path(a.asset_path).name}  ({dur}, q={a.overall_quality}, shots=[{sf}], segments={len(a.best_segments)})")
 
     emitter.emit_run_done(
         ok=True,
