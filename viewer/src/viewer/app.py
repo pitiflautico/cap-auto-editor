@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from progress import parse_progress
+from progress.contracts import ProgressState
 
 log = logging.getLogger(__name__)
 
@@ -802,12 +803,68 @@ def _safe_text(path: Path, max_chars: int = 400) -> str | None:
         return None
 
 
+def _pending_phase_stub(name: str, run_path: Path) -> dict[str, Any]:
+    """Build a placeholder phase dict for a phase declared in the manifest
+    but not yet started (no progress.jsonl on disk).
+    """
+    return {
+        "name": name,
+        "path": run_path / name,
+        "state": ProgressState(),
+        "live_status": "",
+        "live": False,
+        "done": False,
+        "failed": False,
+        "is_pending": True,
+    }
+
+
 def _load_pipeline_detail(pipeline: dict[str, Any]) -> dict[str, Any]:
-    """Augment phases with step lists and preview data for the detail view."""
+    """Augment phases with step lists and preview data for the detail view.
+
+    If a `pipeline_manifest.json` is present, every phase declared in the
+    manifest is rendered (in manifest order), with not-yet-started phases
+    filled in as stubs so the user always sees the full pipeline.
+    """
+    manifest = _load_pipeline_manifest(pipeline["path"])
+    discovered_by_name = {ph["name"]: ph for ph in pipeline["phases"]}
+
+    if manifest:
+        ordered: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for mp in manifest.get("phases", []) or []:
+            name = mp.get("name")
+            if not name:
+                continue
+            seen.add(name)
+            ordered.append(
+                discovered_by_name.get(name)
+                or _pending_phase_stub(name, pipeline["path"])
+            )
+        # Tail: any discovered phase missing from the manifest (sanity).
+        for name, ph in discovered_by_name.items():
+            if name not in seen:
+                ordered.append(ph)
+        phases_source = ordered
+    else:
+        phases_source = pipeline["phases"]
+
     phases_detail = []
-    for ph in pipeline["phases"]:
+    for ph in phases_source:
         phase_dir: Path = ph["path"]
         state = ph["state"]
+
+        # Pending phases (declared in manifest but not yet started) get a
+        # compact stub — no steps, no artifact rendering, single banner.
+        if ph.get("is_pending"):
+            phases_detail.append({
+                **ph,
+                "steps": [],
+                "elapsed": "—",
+                "preview": {},
+                "artifacts": [],
+            })
+            continue
 
         # Build step rows from progress events
         steps: list[dict] = []
@@ -887,9 +944,7 @@ def _load_pipeline_detail(pipeline: dict[str, Any]) -> dict[str, Any]:
 
         # v3.0: load manifest artifacts if pipeline_manifest.json is present
         manifest_artifacts: list[dict] = []
-        manifest = _load_pipeline_manifest(pipeline["path"])
         if manifest:
-            # Find this phase's artifacts from the manifest
             for mp in manifest.get("phases", []):
                 if mp["name"] == ph["name"]:
                     for art in mp.get("render_artifacts", []):
@@ -928,22 +983,26 @@ def api_health():
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     pipeline_runs = _discover_pipeline_runs()
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="pipeline_index.html",
         context={"pipeline_runs": pipeline_runs},
     )
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
 
 
 @app.get("/pipeline/{pipeline_name}", response_class=HTMLResponse)
 def pipeline_detail(request: Request, pipeline_name: str):
     pipeline = _find_pipeline(pipeline_name)
     detail = _load_pipeline_detail(pipeline)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="pipeline_run.html",
         context={"pipeline": detail},
     )
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
 
 
 @app.get("/pipeline/{pipeline_name}/progress", response_class=HTMLResponse)
@@ -989,7 +1048,11 @@ def pipeline_screenshot(pipeline_name: str, phase_name: str, slug: str):
         raise HTTPException(status_code=400, detail="invalid path")
     if not img_path.is_file():
         raise HTTPException(status_code=404, detail="screenshot not found")
-    return FileResponse(img_path, media_type="image/png")
+    return FileResponse(
+        img_path,
+        media_type="image/png",
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.api_route("/pipeline/{pipeline_name}/{phase_name}/file/{rel_path:path}", methods=["GET", "HEAD"])
@@ -1015,7 +1078,11 @@ def pipeline_file(pipeline_name: str, phase_name: str, rel_path: str):
         ".mp4": "video/mp4", ".webm": "video/webm",
         ".txt": "text/plain", ".json": "application/json",
     }.get(suf, "application/octet-stream")
-    return FileResponse(target, media_type=media_type)
+    return FileResponse(
+        target,
+        media_type=media_type,
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.get("/pipeline/{pipeline_name}/{phase_name}/text/{slug}")

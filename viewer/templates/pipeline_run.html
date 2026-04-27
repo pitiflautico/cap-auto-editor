@@ -88,8 +88,14 @@
     </div>
     {% endif %}
 
+    {# Pending phase declared in manifest but not yet started — single banner. #}
+    {% if ph.is_pending %}
+      <div class="rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500 italic">
+        fase pendiente — todavía no se ha ejecutado en este run
+      </div>
+
     {# v3.0: Generic artifact rendering from pipeline_manifest.json #}
-    {% if ph.artifacts %}
+    {% elif ph.artifacts %}
       {% for art in ph.artifacts %}
         <details open class="rounded border border-slate-200 bg-white mb-3">
           <summary class="px-4 py-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
