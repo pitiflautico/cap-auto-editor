@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "storyboard"
+version = "0.1.0"
+description = "Phase 10 of myavatar v6 — preview thumbs per beat for visual validation before render"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "Pillow>=10.0",
+    "progress",
+]
+
+[project.scripts]
+storyboard = "storyboard.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/storyboard"]
