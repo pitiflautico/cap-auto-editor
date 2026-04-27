@@ -80,6 +80,9 @@ def best_segment_for_hint(
     hint: BrollHint,
     beat_editorial_function: str,
     inventory_assets: list[AssetInventory],
+    *,
+    used_assets: dict[str, int] | None = None,
+    used_segments: dict[tuple[str, float], int] | None = None,
 ) -> Optional[tuple[AssetInventory, Segment, float]]:
     """Return (asset, segment, score) where score is 0-1 or None.
 
@@ -93,7 +96,15 @@ def best_segment_for_hint(
       * raw segment.score (0-1)
     Final score is the average. Threshold of 0.4 should be considered
     minimum to anchor.
+
+    Variety penalty (when ``used_assets`` / ``used_segments`` are passed):
+      • -0.15 per previous use of the same asset (rotate between videos)
+      • -0.30 per previous use of the same (asset, segment_t_start) pair
+        (avoid identical clip even if asset must repeat)
+    Encourages spreading the broll across the catalogue.
     """
+    used_assets = used_assets or {}
+    used_segments = used_segments or {}
     best: Optional[tuple[AssetInventory, Segment, float]] = None
 
     hint_subj = (hint.subject or "").lower().strip()
@@ -127,8 +138,13 @@ def best_segment_for_hint(
                 0.5 if not hint_shot else 0.0
             )
             combined = (subj_score + shot_score + ef_score + seg.score) / 4.0
-            if best is None or combined > best[2]:
-                best = (asset, seg, combined)
+            # Variety penalty
+            asset_uses = used_assets.get(asset.slug, 0)
+            seg_uses = used_segments.get((asset.slug, seg.t_start_s), 0)
+            penalty = 0.15 * asset_uses + 0.40 * seg_uses
+            adjusted = max(0.0, combined - penalty)
+            if best is None or adjusted > best[2]:
+                best = (asset, seg, adjusted)
 
     return best
 

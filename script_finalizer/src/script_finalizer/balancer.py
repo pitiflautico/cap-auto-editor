@@ -34,6 +34,12 @@ from .scorer import (
 _ANCHOR_THRESHOLD = 0.45     # below this we don't anchor
 _DROP_SUBJECT_THRESHOLD = 0.30  # below + has a subject + no inventory match → drop
 
+# Types that may anchor against captured/inventoried natural footage.
+# Slides, titles and mockups are "designed" frames that should be produced
+# locally (text_card / generated mockup) — anchoring them to a random
+# product clip would destroy the editorial intent.
+_TYPES_ANCHORABLE = frozenset({"video", "web_capture", "photo"})
+
 
 def _coverage_pct(beats: list[Beat], duration_s: float) -> float:
     """Approximate broll coverage = sum of hint span / duration. May overcount overlaps."""
@@ -99,12 +105,18 @@ def balance(
     report.real_footage_ratio_before = round(real_b, 3)
     report.filler_ratio_before = round(fill_b, 3)
 
+    # Variety counters: shared across the whole video so each beat sees the
+    # picks of previous beats and rotates accordingly.
+    used_assets: dict[str, int] = {}
+    used_segments: dict[tuple[str, float], int] = {}
+
     new_beats: list[Beat] = []
     for beat in analysis.narrative.beats:
         new_hints: list[BrollHint] = []
         for hi, hint in enumerate(beat.broll_hints or []):
             best = best_segment_for_hint(
                 hint, beat.editorial_function, inventory.assets,
+                used_assets=used_assets, used_segments=used_segments,
             )
             score_h = best[2] if best else 0.0
 
@@ -119,6 +131,10 @@ def balance(
                     "description": f"{hint.description}  [@ {asset.asset_path} {seg.t_start_s:.1f}-{seg.t_end_s:.1f}s]",
                 })
                 new_hints.append(new_h)
+                # Bump variety counters AFTER pick — next beat will see these
+                used_assets[asset.slug] = used_assets.get(asset.slug, 0) + 1
+                key = (asset.slug, seg.t_start_s)
+                used_segments[key] = used_segments.get(key, 0) + 1
                 report.hint_decisions.append(HintDecision(
                     beat_id=beat.beat_id, hint_index=hi,
                     action="anchored",
