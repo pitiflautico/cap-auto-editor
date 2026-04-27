@@ -13,6 +13,7 @@ from pipeline.descriptors import (
     polish_descriptor,
     script_finalizer_descriptor,
     storyboard_descriptor,
+    subtitler_descriptor,
     visual_inventory_descriptor,
 )
 
@@ -28,4 +29,5 @@ PIPELINE_PHASES: list[PhaseDescriptor] = [
     broll_resolver_descriptor,
     acquisition_descriptor,
     storyboard_descriptor,
+    subtitler_descriptor,
 ]

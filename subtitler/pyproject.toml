@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "subtitler"
+version = "0.1.0"
+description = "Phase 12 of myavatar v6 — word-by-word SRT/ASS subtitle generator from polished transcript"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "progress",
+]
+
+[project.scripts]
+subtitler = "subtitler.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/subtitler"]
