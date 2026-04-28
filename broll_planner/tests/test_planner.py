@@ -97,6 +97,17 @@ def test_planner_prompt_brand_appears_at_least_once():
     assert "brand must appear at least once" in BROLL_PLANNER_PROMPT
 
 
+def test_planner_prompt_distinguishes_screenshot_vs_og_image():
+    """The prompt must teach the LLM that screenshot=live page and
+    og_image=social preview, and that screenshot is the default for
+    most web_capture beats (otherwise we keep showing logo thumbnails
+    instead of the actual page)."""
+    assert "Pick the RIGHT asset within a `<source>`" in BROLL_PLANNER_PROMPT
+    assert "screenshot" in BROLL_PLANNER_PROMPT
+    assert "og_image" in BROLL_PLANNER_PROMPT
+    assert 'prefer_asset_kind="screenshot"' in BROLL_PLANNER_PROMPT
+
+
 def test_build_planner_prompt_substitutes_lang_and_duration():
     out = build_planner_prompt(
         duration_s=51.0, language="es",
@@ -147,6 +158,30 @@ def test_build_sources_block_only_includes_ok_captures():
     block = build_sources_block(cm)
     assert "ok-page" in block
     assert "failed" not in block
+
+
+def test_build_sources_block_exposes_screenshot_and_og_image_separately():
+    """The planner must see BOTH the live screenshot and the og:image
+    as distinct assets so it can pick `prefer_asset_kind=screenshot`
+    when the beat wants the live page (vs the social logo).
+    """
+    cm = {"results": [{
+        "request": {"slug": "mirofish-my", "url": "https://mirofish.my/"},
+        "status": "ok", "title": "MiroFish", "text_preview": "swarm AI",
+        "artifacts": {
+            "screenshot_path": "screenshot.png",
+            "assets": [
+                {"kind": "og_image", "path": "media/image_01.jpg",
+                 "width": 1200, "height": 630},
+            ],
+        },
+    }]}
+    block = build_sources_block(cm)
+    # Both kinds must appear so the LLM has a real choice
+    assert '"kind": "screenshot"' in block
+    assert '"kind": "og_image"' in block
+    assert "screenshot.png" in block
+    assert "media/image_01.jpg" in block
 
 
 def test_build_inventory_block_returns_none_when_empty():

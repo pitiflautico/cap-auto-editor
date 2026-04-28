@@ -193,3 +193,65 @@ def test_report_counts_by_source_and_type(tmp_path: Path):
     assert report.resolved_by_source.get("anchor_in_inventory", 0) == 1
     assert report.pending_by_type.get("video", 0) == 1
     assert report.pending_by_type.get("title", 0) == 1
+
+
+# ── prefer_asset_kind / shot_type=screen_recording → live screenshot ──
+
+
+def test_prefer_asset_kind_screenshot_picks_live_page_over_inventory_anchor(tmp_path: Path):
+    """When the LLM asks for `prefer_asset_kind=screenshot`, the
+    resolver must serve the live captured page even if the finalizer
+    had written an inventory anchor pointing at the og:image."""
+    result = _build_capture_dir(tmp_path, "mirofish-my", screenshot=True)
+    manifest = {"out_dir": str(tmp_path), "results": [result]}
+    h = BrollHint(
+        type="web_capture", description="x  [@ media/image_01.jpg 0.0-0.0s]",
+        timing=BrollTiming(), energy_match="medium",
+        subject="MiroFish", source_ref="mirofish-my",
+        prefer_asset_kind="screenshot",
+    )
+    a = _analysis([_beat("b001", 0, 5, hints=[h])])
+    plan, _, _ = resolve(a, manifest, tmp_path)
+    r = plan.resolved[0]
+    assert r.source == "source_ref_screenshot"
+    assert r.kind == "screenshot"
+    assert r.abs_path.endswith("captures/mirofish-my/screenshot.png")
+
+
+def test_shot_type_screen_recording_implies_screenshot(tmp_path: Path):
+    """No explicit prefer_asset_kind, but `shot_type=screen_recording`
+    is a strong "I want the live page" signal — resolver should pick
+    screenshot over the inventory anchor."""
+    result = _build_capture_dir(tmp_path, "mirofish-my", screenshot=True)
+    manifest = {"out_dir": str(tmp_path), "results": [result]}
+    h = BrollHint(
+        type="web_capture", description="page",
+        timing=BrollTiming(), energy_match="medium",
+        subject="MiroFish", source_ref="mirofish-my",
+        shot_type="screen_recording",
+    )
+    a = _analysis([_beat("b001", 0, 5, hints=[h])])
+    plan, _, _ = resolve(a, manifest, tmp_path)
+    r = plan.resolved[0]
+    assert r.kind == "screenshot"
+
+
+def test_prefer_asset_kind_og_image_does_not_short_circuit(tmp_path: Path):
+    """`prefer_asset_kind=og_image` should NOT trigger the screenshot
+    short-circuit — the existing inventory anchor / video paths win."""
+    result = _build_capture_dir(tmp_path, "mirofish-my",
+                                 video_path="media/video_01.mp4",
+                                 screenshot=True)
+    manifest = {"out_dir": str(tmp_path), "results": [result]}
+    h = BrollHint(
+        type="web_capture",
+        description="x  [@ media/video_01.mp4 1.0-3.0s]",
+        timing=BrollTiming(), energy_match="medium",
+        subject="MiroFish", source_ref="mirofish-my",
+        prefer_asset_kind="og_image",
+    )
+    a = _analysis([_beat("b001", 0, 5, hints=[h])])
+    plan, _, _ = resolve(a, manifest, tmp_path)
+    r = plan.resolved[0]
+    # Inventory anchor still wins
+    assert r.source == "anchor_in_inventory"

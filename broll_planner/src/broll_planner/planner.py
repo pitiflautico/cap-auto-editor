@@ -63,9 +63,18 @@ def build_entities_block(analysis: AnalysisResult) -> str:
 
 
 def build_sources_block(capture_manifest: dict) -> str:
-    """Each capture entry → one JSON line with `slug`, `url`, `title`,
-    `text_preview` (≤180 chars), and `assets` (list of relative
-    paths). The planner uses this to pick `source_ref` byte-exact.
+    """Each capture entry → one JSON line. We expose BOTH the live
+    page `screenshot` AND the social `og_image` as separate entries
+    in `assets` so the planner can decide which one fits the beat:
+
+      • `screenshot` — the actual rendered page (landing, repo, thread,
+        profile). Prefer this when the beat is about showing "the real
+        page" / "the trending repo" / "the live feed".
+      • `og_image` — the canonical social preview (often a logo or hero
+        banner). Use when the beat just needs the brand mark.
+
+    Without this distinction the LLM only sees `og:image` paths and
+    silently falls back to logos for every web_capture.
     """
     lines: list[str] = []
     for r in (capture_manifest.get("results") or []):
@@ -77,7 +86,17 @@ def build_sources_block(capture_manifest: dict) -> str:
         title = (r.get("title") or "").strip()[:120]
         text_prev = (r.get("text_preview") or "").strip().replace("\n", " ")[:180]
         artifacts = r.get("artifacts") or {}
-        assets = []
+
+        assets: list[dict] = []
+        # 1. The live page screenshot (the "real page" asset)
+        ss_path = artifacts.get("screenshot_path")
+        if ss_path:
+            assets.append({
+                "kind": "screenshot",
+                "path": ss_path,
+                "note": "live rendered page — use this when the beat shows the actual page",
+            })
+        # 2. The og:image / hero banner / downloaded media
         for a in (artifacts.get("assets") or []):
             assets.append({
                 "kind": a.get("kind"),
@@ -85,6 +104,7 @@ def build_sources_block(capture_manifest: dict) -> str:
                 "width": a.get("width"),
                 "height": a.get("height"),
             })
+
         lines.append(json.dumps({
             "slug": slug, "url": url, "title": title,
             "text_preview": text_prev, "assets": assets,

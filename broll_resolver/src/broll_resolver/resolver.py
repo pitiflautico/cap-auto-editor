@@ -85,6 +85,28 @@ def _resolve_one(
         beat_start_s=beat.start_s, beat_end_s=beat.end_s,
     )
 
+    # 0) Honour an explicit `prefer_asset_kind=screenshot` (or the
+    #    implicit `shot_type=screen_recording` request) BEFORE the
+    #    inventory anchor — the inventory only sees og:images, so
+    #    falling through to step 1 would force a logo even when the
+    #    LLM clearly wanted the live page.
+    pak = getattr(hint, "prefer_asset_kind", None)
+    wants_screenshot = (
+        pak == "screenshot"
+        or (pak in (None, "auto") and hint.shot_type == "screen_recording")
+    )
+    if wants_screenshot and hint.source_ref and hint.source_ref in slug_idx:
+        result = slug_idx[hint.source_ref]
+        ss = _screenshot_path(result)
+        if ss:
+            abs_p = _abs(captures_root, hint.source_ref, ss)
+            if abs_p.exists():
+                return ResolvedAsset(
+                    **common_kwargs, type=hint.type,
+                    kind="screenshot", source="source_ref_screenshot",
+                    abs_path=str(abs_p), slug=hint.source_ref,
+                )
+
     # 1) Inventory anchor written by finalizer
     m = _ANCHOR_RE.search(hint.description or "")
     if m and hint.source_ref and hint.source_ref in slug_idx:
@@ -158,6 +180,7 @@ def _resolve_one(
         mockup_kind=getattr(hint, "mockup_kind", None),
         layout=getattr(hint, "layout", None),
         palette=getattr(hint, "palette", None),
+        prefer_asset_kind=getattr(hint, "prefer_asset_kind", None),
         reason="no local material; needs acquisition (Pexels/yt-dlp/text_card)",
     )
 

@@ -43,6 +43,15 @@ For every required/optional beat, walk this list in order and use the FIRST type
       · `type=mockup` + `mockup_kind ∈ {quote, thesis, manifesto, kicker}` for hero phrases / quotes / thesis.
       · `type=title` for a small text overlay (hero phrase, ≤ 6 words). This produces a card via hf_designer (kicker layout for ≤3 words, thesis for longer).
 
+### Pick the RIGHT asset within a `<source>`
+
+Each captured `<source>` exposes TWO kinds of assets in the `assets` list. Choosing the wrong one is the difference between showing the live product and showing a tiny preview thumbnail:
+
+  • **`screenshot`** = the rendered page itself (the actual landing, repo, thread, profile, article). USE THIS when the beat is about *the page being a thing* — "show MiroFish landing", "show the GitHub repo trending", "show the Reddit thread", "show the Twitter profile". Set `prefer_asset_kind="screenshot"`. This is the default for almost any web_capture.
+  • **`og_image`** = the canonical social-share image (often a logo on a flat background, or a hero banner). USE THIS only when the beat needs the **brand mark in isolation** ("MiroFish logo over presenter") and the source's screenshot would be too noisy. Set `prefer_asset_kind="og_image"`.
+
+If `prefer_asset_kind` is null we default to screenshot when `shot_type=screen_recording` (you wanted the live page) and og_image otherwise. Be explicit when the beat clearly wants one or the other.
+
 ## Type budget across the whole video
 For every N total hints aim, as a rough guideline, for:
   • ≥ 30% real anchored (`web_capture`, `video`, `photo`)
@@ -101,7 +110,8 @@ A run that emits 100% mockup/slide is a signal you skipped the source-priority w
           "slide_kind": "...|null",
           "mockup_kind": "...|null",
           "layout": "...|null",
-          "palette": null
+          "palette": null,
+          "prefer_asset_kind": "screenshot|og_image|auto|null"
         }
       ]
     }

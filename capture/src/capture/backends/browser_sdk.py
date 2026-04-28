@@ -115,6 +115,88 @@ _CLOUDFLARE_MARKERS = (
 )
 
 
+# Best-effort cookie / GDPR / consent banner dismissal. We:
+#   1. Click any visible button whose text matches an accept pattern
+#      (English / Spanish / French / German). Top-frame only — many
+#      banners live in iframes (OneTrust) which a JS-only pass cannot
+#      reach, so step 2 also brute-hides them by selector.
+#   2. Hide any element matching the well-known consent vendor IDs +
+#      any fixed/sticky element whose text contains "cookie" /
+#      "consent" / "privacy" — but only if it covers > 8% of the
+#      viewport, to avoid hiding inline content.
+# This runs INSIDE the page (Chrome devtools `tab.js`) — pure DOM,
+# no playwright required.
+_CONSENT_DISMISSAL_JS = r"""
+(() => {
+  const ACCEPT_PATTERNS = [
+    /^\s*(accept(\s+all)?|allow(\s+all)?|agree|got\s+it|i\s+agree)\s*$/i,
+    /^\s*(aceptar( todo)?|acepto|entendido|de acuerdo)\s*$/i,
+    /^\s*(accepter( tout)?|d['’]accord|j['’]accepte)\s*$/i,
+    /^\s*(akzeptieren( alle)?|verstanden|einverstanden)\s*$/i,
+  ];
+  const VENDOR_SELECTORS = [
+    "#onetrust-banner-sdk", "#onetrust-consent-sdk",
+    "#CybotCookiebotDialog", "#cookiebot",
+    "#truste-consent-track", "#truste-consent-content",
+    "[id^='didomi-']", "[class*='didomi-']",
+    "[id^='qc-cmp']", "[class*='qc-cmp']",
+    "[id*='cookie-consent']", "[class*='cookie-consent']",
+    "[id*='cookieConsent']", "[class*='cookieConsent']",
+    "[aria-label*='consent' i]", "[aria-label*='cookie' i]",
+    ".cc-window", ".cc-banner",
+    "ot-sdk-row", ".consent-banner",
+    "#gdpr-cookie-message", "#gdpr-banner",
+  ];
+  const TEXT_KEYWORDS = ["cookie", "consent", "privacy", "gdpr", "rgpd"];
+  let clicks = 0, hides = 0;
+
+  // 1. Try to click an accept button.
+  const buttons = Array.from(document.querySelectorAll(
+    "button, [role='button'], a.btn, input[type='button'], input[type='submit']"
+  ));
+  for (const b of buttons) {
+    const t = (b.innerText || b.value || "").trim();
+    if (!t || t.length > 40) continue;
+    if (ACCEPT_PATTERNS.some(re => re.test(t))) {
+      try { b.click(); clicks++; } catch (e) { /* swallow */ }
+    }
+  }
+
+  // 2. Hide vendor-known banners regardless.
+  for (const sel of VENDOR_SELECTORS) {
+    document.querySelectorAll(sel).forEach(el => {
+      el.style.setProperty("display", "none", "important");
+      el.style.setProperty("visibility", "hidden", "important");
+      hides++;
+    });
+  }
+
+  // 3. Heuristic sweep: hide fixed/sticky elements that look like
+  //    overlays (cover ≥ 8% of the viewport) and contain consent text.
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const minArea = vw * vh * 0.08;
+  document.querySelectorAll("body *").forEach(el => {
+    try {
+      const cs = getComputedStyle(el);
+      if (!["fixed", "sticky"].includes(cs.position)) return;
+      const r = el.getBoundingClientRect();
+      if (r.width * r.height < minArea) return;
+      const txt = (el.innerText || "").toLowerCase();
+      if (!TEXT_KEYWORDS.some(k => txt.includes(k))) return;
+      el.style.setProperty("display", "none", "important");
+      hides++;
+    } catch (e) { /* ignore */ }
+  });
+
+  // 4. Restore body scroll if a banner locked it.
+  document.documentElement.style.removeProperty("overflow");
+  document.body.style.removeProperty("overflow");
+
+  return { clicks, hides };
+})();
+"""
+
+
 def _looks_like_cloudflare(html: str, title: str | None) -> bool:
     if title and title.strip() in ("Just a moment...",):
         return True
@@ -129,20 +211,26 @@ class BrowserSdkBackend:
         self,
         *,
         profile: str = "default",
-        viewport_w: int = 1280,
-        viewport_h: int = 1600,
+        viewport_w: int = 390,        # iPhone 12 Pro logical width
+        viewport_h: int = 844,        # iPhone 12 Pro logical height
+        device_scale_factor: int = 3,    # retina → physical 1170×2532
+        mobile: bool = True,             # request mobile-formatted pages
         wait_s: float = 3.0,
         save_raw_html: bool = False,
         media: bool = True,
         max_media_per_capture: int = 3,
+        dismiss_consent: bool = True,
     ) -> None:
         self.profile = profile
         self.viewport_w = viewport_w
         self.viewport_h = viewport_h
+        self.device_scale_factor = device_scale_factor
+        self.mobile = mobile
         self.wait_s = wait_s
         self.save_raw_html = save_raw_html
         self.media = media
         self.max_media_per_capture = max_media_per_capture
+        self.dismiss_consent = dismiss_consent
 
     def accepts(
         self, request: CaptureRequest, content_type: str | None
@@ -197,12 +285,23 @@ class BrowserSdkBackend:
                     tab.send("Emulation.setDeviceMetricsOverride", {
                         "width": self.viewport_w,
                         "height": self.viewport_h,
-                        "deviceScaleFactor": 1,
-                        "mobile": False,
+                        "deviceScaleFactor": self.device_scale_factor,
+                        "mobile": self.mobile,
                     })
                     time.sleep(0.5)
                 except Exception as e:
                     log.warning("setDeviceMetricsOverride failed: %s", e)
+
+                # Dismiss cookie / GDPR / consent banners before screenshot.
+                # We try common selectors plus a heuristic that hides any
+                # fixed/sticky element matching the typical patterns. Best
+                # effort — failure is non-fatal.
+                if self.dismiss_consent:
+                    try:
+                        tab.js(_CONSENT_DISMISSAL_JS)
+                        time.sleep(0.4)
+                    except Exception as e:
+                        log.warning("consent dismissal failed: %s", e)
 
                 try:
                     html = tab.js(

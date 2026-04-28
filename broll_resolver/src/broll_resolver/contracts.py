@@ -72,6 +72,7 @@ class PendingHint(BaseModel):
     mockup_kind: str | None = None
     layout: str | None = None
     palette: dict[str, str] | None = None
+    prefer_asset_kind: str | None = None
 
 
 class BrollPlan(BaseModel):

@@ -72,6 +72,14 @@ class BrollHint(BaseModel):
     ] | None = None
     layout: Literal["fullscreen", "split_top", "split_bottom"] | None = None
     palette: dict[str, str] | None = None
+    # Which captured asset kind to prefer when source_ref points to a
+    # capture that has BOTH a live screenshot and og:images. The
+    # broll_resolver respects this:
+    #   • "screenshot" → prefer the rendered page (landing, repo, feed)
+    #   • "og_image"   → prefer the social preview / logo banner
+    #   • None / "auto" → resolver heuristic (screenshot when shot_type
+    #                     is screen_recording, og_image otherwise).
+    prefer_asset_kind: Literal["screenshot", "og_image", "auto"] | None = None
 
 
 class ArcAct(BaseModel):
