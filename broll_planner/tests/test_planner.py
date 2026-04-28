@@ -221,6 +221,48 @@ def test_sanitize_strips_source_ref_for_designed_types():
     assert out["source_ref"] is None
 
 
+def test_sanitize_coerces_string_null_to_none_on_nullable_fields():
+    """Sonnet sometimes emits the string `"null"` (verbatim from the
+    prompt's enum spec) instead of JSON null on optional Literal
+    fields. This used to drop the entire hint at validation. Coerce
+    `"null"` → None on every nullable field.
+    """
+    notes: list[str] = []
+    out = sanitize_hint_dict(
+        {
+            "type": "web_capture",
+            "capcut_effect": "null",
+            "source_ref": "real-slug",
+            "shot_type": "null",
+            "subject": "null",
+            "slide_kind": "null",
+            "mockup_kind": "null",
+            "layout": "null",
+            "duration_target_s": "null",
+        },
+        valid_slugs={"real-slug"}, notes=notes, beat_id="b001",
+    )
+    assert out["capcut_effect"] is None
+    assert out["shot_type"] is None
+    assert out["subject"] is None
+    assert out["slide_kind"] is None
+    assert out["mockup_kind"] is None
+    assert out["layout"] is None
+    assert out["duration_target_s"] is None
+    # Real value preserved
+    assert out["source_ref"] == "real-slug"
+
+
+def test_sanitize_string_null_is_case_insensitive_and_strips():
+    notes: list[str] = []
+    out = sanitize_hint_dict(
+        {"type": "pexels", "capcut_effect": "  NULL  ", "shot_type": "Null"},
+        valid_slugs=set(), notes=notes, beat_id="b002",
+    )
+    assert out["capcut_effect"] is None
+    assert out["shot_type"] is None
+
+
 # ── Merge step ────────────────────────────────────────────────────
 
 

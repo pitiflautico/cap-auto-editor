@@ -160,10 +160,33 @@ def sanitize_hint_dict(
     h: dict, *, valid_slugs: set[str], notes: list[str], beat_id: str,
 ) -> dict:
     """Coerce a raw LLM hint dict into something `BrollHint` can
-    validate. Drops bogus source_ref slugs (a hallucinated source
-    would otherwise mis-anchor). Returns the cleaned dict.
+    validate.
+
+    Two classes of cleanup:
+      • Stringly-typed nulls. The LLM (especially when reading the
+        prompt's enum spec literally as text) sometimes emits the
+        string ``"null"`` instead of JSON ``null`` on optional Literal
+        fields. This used to drop 5/6 of an otherwise valid plan.
+        Coerce ``"null"`` → ``None`` on every field that accepts None.
+      • Bogus source_ref slugs. A hallucinated slug would mis-anchor
+        the hint to nothing. Drop it (set to None) and log a note.
+        Designed types (title/slide/mockup) MUST have source_ref=None
+        regardless of what the LLM emitted — they are generated, not
+        anchored.
     """
     out = dict(h)
+
+    # Coerce stringly-typed nulls on all known optional fields.
+    NULLABLE_FIELDS = (
+        "capcut_effect", "source_ref", "query", "subject",
+        "shot_type", "duration_target_s", "slide_kind",
+        "mockup_kind", "layout", "palette",
+    )
+    for f in NULLABLE_FIELDS:
+        v = out.get(f)
+        if isinstance(v, str) and v.strip().lower() == "null":
+            out[f] = None
+
     sr = out.get("source_ref")
     if sr and sr not in valid_slugs:
         notes.append(
@@ -171,7 +194,6 @@ def sanitize_hint_dict(
             f"(not in <sources>)"
         )
         out["source_ref"] = None
-    # Designed types must never carry source_ref.
     if out.get("type") in ("title", "slide", "mockup"):
         out["source_ref"] = None
     return out
