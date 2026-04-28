@@ -213,6 +213,24 @@ def run(
                 # non-fatal: polish will proceed without audio
                 print(f"[pipeline] Warning: audio extraction failed: {exc}", file=sys.stderr)
 
+    # Stage the source video as `<run_dir>/video.mp4` so downstream
+    # phases (compositor, etc.) can reference it without depending on
+    # the operator's original path layout. We use a symlink to avoid
+    # copying potentially large files; if the FS doesn't support
+    # symlinks (e.g. some Windows shares) fall back to copy.
+    if video is not None:
+        link = run_dir / "video.mp4"
+        if not link.exists():
+            try:
+                link.symlink_to(video.resolve())
+            except OSError:
+                import shutil
+                try:
+                    shutil.copy2(video, link)
+                except OSError as exc:
+                    print(f"[pipeline] Warning: could not stage video: {exc}",
+                          file=sys.stderr)
+
     # Track completed phase names for dependency checking
     completed: set[str] = set()
     phase_results: list[PhaseResult] = []
