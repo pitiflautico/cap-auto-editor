@@ -21,7 +21,7 @@ def _sub_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 subtitler_descriptor = PhaseDescriptor(
     name="subtitler",
     display_name="Subtitler (word-by-word)",
-    order=12,
+    order=13,
     out_subdir="subtitler",
     cli_command=[SUB_BIN, "run"],
     cli_args=_sub_args,

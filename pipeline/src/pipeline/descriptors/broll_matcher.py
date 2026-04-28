@@ -22,7 +22,7 @@ def _bm_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 broll_matcher_descriptor = PhaseDescriptor(
     name="broll_matcher",
     display_name="B-roll Matcher (LLM)",
-    order=8,             # entre script_finalizer (7) y broll_resolver (9)
+    order=9,
     out_subdir="broll_matcher",
     cli_command=[BM_BIN, "run"],
     cli_args=_bm_args,

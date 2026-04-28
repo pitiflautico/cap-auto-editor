@@ -5,6 +5,7 @@ from .analysis import analysis_descriptor
 from .entity_enricher import entity_enricher_descriptor
 from .auto_source import auto_source_descriptor
 from .visual_inventory import visual_inventory_descriptor
+from .broll_planner import broll_planner_descriptor
 from .script_finalizer import script_finalizer_descriptor
 from .broll_matcher import broll_matcher_descriptor
 from .broll_resolver import broll_resolver_descriptor
@@ -19,6 +20,7 @@ __all__ = [
     "entity_enricher_descriptor",
     "auto_source_descriptor",
     "visual_inventory_descriptor",
+    "broll_planner_descriptor",
     "script_finalizer_descriptor",
     "broll_matcher_descriptor",
     "broll_resolver_descriptor",

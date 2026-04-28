@@ -98,7 +98,29 @@ class Beat(BaseModel):
     hero_text_candidate: str | None     # 2-9 words, Sentence case, or null
     energy: Literal["high", "medium", "low"]
     references_topic_ids: list[str]
+
+    # v2.0 — visual_need is now the only signal the analysis pass emits
+    # for b-roll. The dedicated `broll_planner` phase reads (beats +
+    # entities + sources + visual_inventory) and fills `broll_hints` in
+    # a second LLM pass. The director should NOT emit broll_hints here;
+    # the field stays as a list with default = [] so older analysis
+    # files keep round-tripping, and the planner appends to it.
+    visual_need: Literal["none", "optional", "required"] = "none"
+    visual_anchor_type: Literal[
+        "entity", "metric", "comparison", "quote",
+        "platform", "feature", "mood",
+    ] | None = None
+    visual_subject: str | None = None       # canonical entity / number / phrase
+
     broll_hints: list[BrollHint] = Field(default_factory=list)
+
+    # Editorial flags for content the prose field cannot carry without
+    # corrupting the literal transcript text. Drop the legacy practice
+    # of writing "(speaker retakes)" into `text` — keep `text` faithful,
+    # surface the meta-info here.
+    flags: list[
+        Literal["speaker_retake", "asr_garbage", "silence", "music_only"]
+    ] = Field(default_factory=list)
 
 
 class Topic(BaseModel):

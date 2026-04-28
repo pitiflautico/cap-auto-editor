@@ -37,7 +37,7 @@ def _br_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 broll_resolver_descriptor = PhaseDescriptor(
     name="broll_resolver",
     display_name="B-roll Resolver",
-    order=9,
+    order=10,
     out_subdir="broll_resolver",
     cli_command=[BR_BIN, "run"],
     cli_args=_br_args,

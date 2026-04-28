@@ -12,11 +12,15 @@ SF_BIN = (
 
 
 def _sf_args(ctx: RunContext, phase_dir: Path) -> list[str]:
-    # Prefer the super-enriched analysis (URLs filled by auto_source) if
-    # present, otherwise fall back to the raw analysis.
+    # v2.0: read the planner-merged analysis. The fallbacks cover
+    # legacy runs where broll_planner didn't run (analysis_super_enriched
+    # already had broll_hints filled by the old single-pass director).
+    planned = ctx.run_dir / "broll_planner" / "analysis_with_broll.json"
     super_enriched = ctx.run_dir / "auto_source" / "analysis_super_enriched.json"
     enriched = ctx.run_dir / "entity_enricher" / "analysis_enriched.json"
-    if super_enriched.exists():
+    if planned.exists():
+        analysis_path = planned
+    elif super_enriched.exists():
         analysis_path = super_enriched
     elif enriched.exists():
         analysis_path = enriched
@@ -34,11 +38,11 @@ def _sf_args(ctx: RunContext, phase_dir: Path) -> list[str]:
 script_finalizer_descriptor = PhaseDescriptor(
     name="script_finalizer",
     display_name="Script Finalizer",
-    order=7,
+    order=8,
     out_subdir="script_finalizer",
     cli_command=[SF_BIN, "run"],
     cli_args=_sf_args,
-    depends_on=["visual_inventory"],
+    depends_on=["broll_planner"],
     on_failure="skip",
     retry_max=0,
     timeout_s=120,
