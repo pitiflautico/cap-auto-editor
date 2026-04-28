@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from compositor.contracts import CompositionLayer, CompositionPlan
-from compositor.html import render_html
+from compositor_hf.contracts import CompositionLayer, CompositionPlan
+from compositor_hf.html import render_html
 
 
 def _plan(layers, *, audio_rel=None, duration=10.0, w=1080, h=1920):

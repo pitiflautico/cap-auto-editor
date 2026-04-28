@@ -13,6 +13,7 @@ from .acquisition import acquisition_descriptor
 from .storyboard import storyboard_descriptor
 from .subtitler import subtitler_descriptor
 from .compositor import compositor_descriptor
+from .compositor_hf import compositor_hf_descriptor
 
 __all__ = [
     "capture_descriptor",
@@ -29,4 +30,5 @@ __all__ = [
     "storyboard_descriptor",
     "subtitler_descriptor",
     "compositor_descriptor",
+    "compositor_hf_descriptor",
 ]

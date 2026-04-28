@@ -1,16 +1,17 @@
 """compositor — Phase 14 of v6 pipeline.
 
-MVP: composes the final 1080×1920 9:16 MP4 from:
-  • broll_plan_complete.json (acquisition output) — assets per beat
-  • subtitle_clips.json (subtitler output) — word-by-word cues
-  • audio.wav (original presenter narration)
-  • analysis.json (for beat timings + duration)
+The "real" compositor: adapts the v6 outputs (broll_plan_complete +
+subtitle_clips + analysis_with_broll + audio.wav + presenter video) to
+the input format of `pipeline_v4_frozen_20260423/agent4_builder/`,
+which produces a CapCut project (`draft_info.json` + Resources/).
 
-Renderer: HyperFrames CLI (`npx hyperframes render`). The MVP keeps
-the presenter OFF the canvas — assets fill fullscreen during their
-beats, subtitles overlay bottom-third, audio is the original WAV.
+The creator opens that project in CapCut Pro and gets ALL of the
+editable layers: presenter (with eye_contact / remove_background),
+b-roll (Ken Burns motion via keyframes), subtitles (karaoke word-by-
+word with native CapCut text effects), title overlays (impacto /
+stat / contexto / cinematic), color overlays, music, stickers.
 
-A second iteration adds the matted presenter, split layouts, and
-capcut_effect transitions.
+The HyperFrames-based render lives in `compositor_hf` as an optional
+preview / quick-share path.
 """
 __version__ = "0.1.0"

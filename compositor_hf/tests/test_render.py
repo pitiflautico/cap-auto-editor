@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from compositor import render as render_mod
+from compositor_hf import render as render_mod
 
 
 def _stub_subprocess_run(monkeypatch, *, returncode: int, write: bytes | None = None,

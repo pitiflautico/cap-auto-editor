@@ -1,244 +1,112 @@
-"""Build the timed CompositionPlan from broll + subtitles + analysis.
+"""Run v4's `agent4_builder.build()` from a v6 visual_plan dict.
 
-Pure-data transform — no I/O beyond reading already-loaded dicts. The
-HTML emitter (in `html.py`) consumes a `CompositionPlan` and produces
-the index.html that HyperFrames renders. Splitting the two means we
-can unit-test the timing logic without depending on the markup format.
+The v4 module has no pyproject.toml — it lives as a flat package next
+to the rest of `pipeline_v4_frozen_20260423/`. We expose its module
+roots via `sys.path` only when the bridge is invoked, so unit tests
+that don't touch real assets never load it.
 """
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime, timezone
+import os
+import sys
 from pathlib import Path
-
-from .contracts import CompositionLayer, CompositionPlan
+from typing import Any
 
 log = logging.getLogger("compositor.builder")
 
 
-_VIDEO_EXTS = {".mp4", ".webm", ".mov", ".mkv"}
-_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+_V4_ROOT = (
+    Path("/Volumes/DiscoExterno2/mac_offload/Projects/myavatar/"
+         "pipeline_v4_frozen_20260423")
+)
 
 
-def _classify_asset(path: str) -> str:
-    """Return the kind tag the HTML builder switches on. Defaults to
-    `image` because that's the safest fallback (still rendering)."""
-    suf = Path(path).suffix.lower()
-    if suf in _VIDEO_EXTS:
-        return "video"
-    if suf in _IMAGE_EXTS:
-        return "image"
-    return "image"
-
-
-def _absolute_to_relative(abs_path: str, project_root: Path) -> str:
-    """Try to express `abs_path` relative to the project root that
-    HyperFrames will see. If the asset is outside the project, fall
-    back to the absolute file:// URL — but for video tags HyperFrames'
-    headless Chromium fails to load metadata across origins, so the
-    cli stages assets as symlinks inside the project before calling
-    this. Treat the file:// fallback as a last resort.
+def _ensure_v4_on_syspath() -> None:
+    """Prepend the v4 builder dirs to `sys.path` so `import builder` /
+    `from layers.X import …` resolve. Idempotent.
     """
-    p = Path(abs_path)
-    try:
-        return str(p.relative_to(project_root))
-    except ValueError:
-        return p.as_uri()
+    paths_to_add = [
+        _V4_ROOT / "agent4_builder",
+        _V4_ROOT / "agent4_builder" / "shared",
+        _V4_ROOT / "agent4_builder" / "effects",
+        _V4_ROOT / "agent4_builder" / "layers",
+        _V4_ROOT,                              # for `shared.capcut_constants`
+    ]
+    for p in paths_to_add:
+        s = str(p.resolve())
+        if s not in sys.path:
+            sys.path.insert(0, s)
 
 
-def stage_assets(
-    *,
-    broll_plan: dict,
-    audio_abs_path: Path | None,
-    project_root: Path,
-) -> tuple[dict, Path | None]:
-    """Materialise every external asset as a symlink under
-    `<project_root>/assets/` so HyperFrames sees same-origin URLs.
-
-    Returns a copy of `broll_plan` whose `resolved[*].abs_path` points
-    to the staged copy, and the new audio path (also under assets/).
-    Symlinks rather than copies — these are bulky video files.
+def write_visual_plan(visual_plan: dict, out_dir: Path) -> Path:
+    """Persist the v4 visual_plan_resolved.json next to the build
+    output. Useful for debugging and for re-running just the v4
+    builder without re-doing the v6 adapter.
     """
-    assets_dir = project_root / "assets"
-    assets_dir.mkdir(parents=True, exist_ok=True)
-
-    new_plan = {**broll_plan, "resolved": []}
-    used_names: set[str] = set()
-
-    for r in (broll_plan.get("resolved") or []):
-        abs_path = r.get("abs_path")
-        if not abs_path:
-            new_plan["resolved"].append(r)
-            continue
-        src = Path(abs_path)
-        if not src.exists():
-            new_plan["resolved"].append(r)
-            continue
-        beat = r.get("beat_id") or "b???"
-        idx = r.get("hint_index", 0)
-        ext = src.suffix.lower() or ".bin"
-        base = f"{beat}_{idx}{ext}"
-        # Avoid name collisions across hints with the same id
-        i = 1
-        name = base
-        while name in used_names:
-            stem = f"{beat}_{idx}_{i}"
-            name = f"{stem}{ext}"
-            i += 1
-        used_names.add(name)
-        link = assets_dir / name
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        try:
-            link.symlink_to(src.resolve())
-        except OSError:
-            # Fallback to file copy on filesystems without symlink support
-            import shutil
-            shutil.copy2(src, link)
-        new_r = {**r, "abs_path": str(link)}
-        new_plan["resolved"].append(new_r)
-
-    # Audio — same idea, named explicitly so the HTML can reference it
-    new_audio: Path | None = None
-    if audio_abs_path is not None:
-        a = Path(audio_abs_path)
-        if a.exists():
-            link = assets_dir / f"audio{a.suffix.lower()}"
-            if link.exists() or link.is_symlink():
-                link.unlink()
-            try:
-                link.symlink_to(a.resolve())
-            except OSError:
-                import shutil
-                shutil.copy2(a, link)
-            new_audio = link
-    return new_plan, new_audio
-
-
-def _broll_window(beat_start_s: float, beat_end_s: float,
-                  in_pct: float, out_pct: float,
-                  fallback_min_dur_s: float) -> tuple[float, float]:
-    """Resolve a beat-relative timing into absolute seconds.
-
-    Each hint declares a `timing.in_pct/out_pct` (0–1 of beat) — we
-    map that onto the beat window. If the resulting window is below
-    `fallback_min_dur_s` we extend it (the LLM occasionally emits
-    in_pct=out_pct on punchline reveals).
-    """
-    dur = max(0.0, beat_end_s - beat_start_s)
-    s = beat_start_s + dur * max(0.0, min(1.0, in_pct))
-    e = beat_start_s + dur * max(0.0, min(1.0, out_pct))
-    if e - s < fallback_min_dur_s:
-        e = min(beat_end_s, s + fallback_min_dur_s)
-    return s, e
-
-
-def build_plan(
-    *,
-    broll_plan: dict,
-    subtitle_clips: dict,
-    duration_s: float,
-    beat_window_by_id: dict[str, tuple[float, float]],
-    project_root: Path,
-    audio_abs_path: Path | None = None,
-    width: int = 1080,
-    height: int = 1920,
-    fps: int = 30,
-    min_broll_window_s: float = 0.6,
-) -> CompositionPlan:
-    """Assemble layers from the upstream phase outputs.
-
-    Args:
-        broll_plan: parsed broll_plan_complete.json (from acquisition).
-        subtitle_clips: parsed subtitle_clips.json (from subtitler).
-        duration_s: total video duration.
-        beat_window_by_id: {beat_id: (start_s, end_s)} — usually from
-            analysis_with_broll or analysis_balanced narrative.beats.
-        project_root: directory that becomes HyperFrames' cwd. Asset
-            paths inside it are emitted relative; outside paths fall
-            back to absolute file:// URLs.
-        audio_abs_path: optional override for the audio track. If None
-            we look for a sibling `audio.wav` in project_root.
-
-    Returns the fully populated CompositionPlan.
-    """
-    notes: list[str] = []
-    layers: list[CompositionLayer] = []
-
-    # ── b-roll layers ──────────────────────────────────────────────
-    for r in (broll_plan.get("resolved") or []):
-        beat_id = r.get("beat_id") or ""
-        win = beat_window_by_id.get(beat_id)
-        if win is None:
-            # Fall back to the broll_plan's own beat window if upstream
-            # didn't pass an analysis (e.g. unit tests).
-            bs = float(r.get("beat_start_s") or 0.0)
-            be = float(r.get("beat_end_s") or 0.0)
-            win = (bs, be)
-        bs, be = win
-        if be <= bs:
-            notes.append(f"{beat_id}: empty beat window — skipped")
-            continue
-        abs_path = r.get("abs_path")
-        if not abs_path:
-            notes.append(f"{beat_id}: no abs_path — skipped")
-            continue
-        in_pct = float((r.get("timing") or {}).get("in_pct", 0.0))
-        out_pct = float((r.get("timing") or {}).get("out_pct", 1.0))
-        s, e = _broll_window(bs, be, in_pct, out_pct,
-                              fallback_min_dur_s=min_broll_window_s)
-        kind = _classify_asset(abs_path)
-        layers.append(CompositionLayer(
-            kind="broll",
-            start_s=round(s, 3), end_s=round(e, 3),
-            asset_rel=_absolute_to_relative(abs_path, project_root),
-            asset_kind=kind,
-            layout=(r.get("layout") or "fullscreen"),
-            beat_id=beat_id,
-        ))
-
-    # ── subtitle layers ────────────────────────────────────────────
-    for c in (subtitle_clips.get("clips") or []):
-        text = (c.get("text") or "").strip()
-        if not text:
-            continue
-        layers.append(CompositionLayer(
-            kind="subtitle",
-            start_s=round(float(c.get("start_s", 0.0)), 3),
-            end_s=round(float(c.get("end_s", 0.0)), 3),
-            text=text,
-        ))
-
-    # ── audio (single track for the whole video) ───────────────────
-    audio_rel: str | None = None
-    if audio_abs_path is not None and Path(audio_abs_path).exists():
-        audio_rel = _absolute_to_relative(str(audio_abs_path), project_root)
-    else:
-        candidate = project_root / "audio.wav"
-        if candidate.exists():
-            audio_rel = "audio.wav"
-        else:
-            notes.append("no audio.wav located — final.mp4 will be silent")
-
-    return CompositionPlan(
-        created_at=datetime.now(timezone.utc),
-        duration_s=duration_s,
-        width=width, height=height, fps=fps,
-        audio_rel=audio_rel,
-        layers=layers,
-        notes=notes,
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "visual_plan_resolved.json"
+    path.write_text(
+        json.dumps(visual_plan, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
+    return path
 
 
-def beat_windows_from_analysis(analysis: dict) -> dict[str, tuple[float, float]]:
-    """Pull (beat_id → start/end) out of an analysis dict (any of the
-    enriched variants — schema is stable across them)."""
-    out: dict[str, tuple[float, float]] = {}
-    for b in (analysis.get("narrative") or {}).get("beats") or []:
-        bid = b.get("beat_id")
-        if bid:
-            out[bid] = (
-                float(b.get("start_s", 0.0)),
-                float(b.get("end_s", 0.0)),
-            )
-    return out
+def run_v4_build(
+    *,
+    visual_plan_path: Path,
+    capcut_project_dir: Path,
+    project_name: str | None = None,
+) -> dict:
+    """Invoke `agent4_builder.build()` and return its BuildResult as
+    a JSON-serialisable dict.
+
+    The v4 build writes the CapCut project tree (`draft_info.json` +
+    `Resources/`) under `capcut_project_dir`. The caller is then free
+    to copy that tree into CapCut's user-data Projects directory.
+    """
+    _ensure_v4_on_syspath()
+    capcut_project_dir.mkdir(parents=True, exist_ok=True)
+    # Lazy import — keeps unit tests of this module free of v4 deps.
+    from builder import build as _v4_build         # type: ignore
+
+    res = _v4_build(
+        plan_path=str(visual_plan_path),
+        output_dir=str(capcut_project_dir),
+        project_name=project_name or capcut_project_dir.name,
+    )
+    return {
+        "project_dir": getattr(res, "project_dir", str(capcut_project_dir)),
+        "draft_info_path": getattr(res, "draft_info_path", ""),
+        "warnings": list(getattr(res, "warnings", []) or []),
+        "duration_us": getattr(res, "duration_us", 0),
+    }
+
+
+def install_to_capcut(project_dir: Path,
+                      capcut_user_dir: Path | None = None) -> Path | None:
+    """Copy the built CapCut project tree into CapCut's user data so
+    the project shows up in the app launcher. macOS-only path.
+
+    Returns the destination directory or None when the user data dir
+    can't be located (e.g. running on Linux / CI).
+    """
+    if capcut_user_dir is None:
+        default = Path.home() / (
+            "Library/Containers/com.lemon.lvoverseas/Data/Movies/CapCut/"
+            "User Data/Projects/com.lveditor.draft"
+        )
+        capcut_user_dir = default
+    if not capcut_user_dir.exists():
+        log.info("CapCut user data dir not found: %s", capcut_user_dir)
+        return None
+    dst = capcut_user_dir / project_dir.name
+    if dst.exists():
+        log.info("Removing previous install at %s", dst)
+        import shutil
+        shutil.rmtree(dst)
+    import shutil
+    shutil.copytree(project_dir, dst)
+    return dst

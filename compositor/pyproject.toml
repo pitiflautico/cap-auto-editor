@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "compositor"
 version = "0.1.0"
-description = "Phase 14 of myavatar v6 — composes the final 1080x1920 MP4 from broll_plan + subtitles + audio via HyperFrames"
+description = "Phase 14 of myavatar v6 — CapCut export. Adapts v6 outputs to v4/agent4_builder visual_plan_resolved.json and produces an editable CapCut project."
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",

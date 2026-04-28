@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "compositor_hf"
+version = "0.1.0"
+description = "Phase 14 of myavatar v6 — composes the final 1080x1920 MP4 from broll_plan + subtitles + audio via HyperFrames"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "progress",
+]
+
+[project.scripts]
+compositor-hf = "compositor_hf.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/compositor_hf"]
