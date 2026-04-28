@@ -12,6 +12,7 @@ from .broll_resolver import broll_resolver_descriptor
 from .acquisition import acquisition_descriptor
 from .storyboard import storyboard_descriptor
 from .subtitler import subtitler_descriptor
+from .compositor import compositor_descriptor
 
 __all__ = [
     "capture_descriptor",
@@ -27,4 +28,5 @@ __all__ = [
     "acquisition_descriptor",
     "storyboard_descriptor",
     "subtitler_descriptor",
+    "compositor_descriptor",
 ]
