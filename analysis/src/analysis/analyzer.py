@@ -71,9 +71,28 @@ def _remap_broll_hints(narrative_dict: dict) -> dict:
     LLMs return many variants for "no value": "null", "None", "Null",
     "n/a", empty string. Pydantic literal validation rejects any of
     these. We coerce all non-canonical values to None.
+
+    Also normalises the v2.0 visual_* fields on each beat — same
+    failure mode (LLM emits "null" string) on visual_anchor_type /
+    visual_subject / hero_text_candidate.
     """
     beats = narrative_dict.get("beats") or []
     for b in beats:
+        # v2.0 visual_need brief
+        for fld in ("visual_anchor_type", "visual_subject",
+                    "hero_text_candidate"):
+            v = b.get(fld)
+            if v is not None and isinstance(v, str) \
+                    and v.strip().lower() in _NULL_LIKE:
+                b[fld] = None
+        # visual_need is REQUIRED by the schema as a literal — accept
+        # the string "none" verbatim (it's a valid value), but coerce
+        # other null-likes / unknown values to "none" so the run
+        # doesn't die on a typo.
+        vn = b.get("visual_need")
+        if vn is None or (isinstance(vn, str)
+                          and vn.strip().lower() in {"null", "n/a", ""}):
+            b["visual_need"] = "none"
         hints = b.get("broll_hints") or []
         for h in hints:
             # capcut_effect: must be in the literal enum or None.
@@ -150,7 +169,21 @@ def _load_sources(
 # ─── JSON extraction ───────────────────────────────────────────────────────────
 
 def _extract_json(text: str) -> dict:
-    """Extract a JSON object from LLM output (handles markdown fences)."""
+    """Extract a JSON object from LLM output.
+
+    Three layers of tolerance, applied in order:
+      1. Strip ``` markdown fences if present.
+      2. Try strict `json.loads` on the stripped text.
+      3. Try strict `json.loads` on the slice between the first `{`
+         and the last `}` (drops any trailing prose / `}\n```` etc.).
+      4. Repair-parse: walk the slice and find the rightmost `}`
+         that yields a balanced object; strip trailing commas before
+         `]` / `}` (a recurring DeepSeek failure mode on long outputs);
+         retry json.loads on that.
+
+    Raises the last JSONDecodeError if every layer fails so the caller
+    can persist the raw text for human inspection.
+    """
     import re
     s = text.strip()
     if s.startswith("```"):
@@ -159,11 +192,71 @@ def _extract_json(text: str) -> dict:
     try:
         return json.loads(s)
     except json.JSONDecodeError:
-        start = s.find("{")
-        end = s.rfind("}")
-        if start >= 0 and end > start:
-            return json.loads(s[start:end + 1])
-        raise
+        pass
+
+    start = s.find("{")
+    end = s.rfind("}")
+    if start < 0 or end <= start:
+        raise json.JSONDecodeError("no JSON object delimiters found",
+                                    s, 0)
+
+    snippet = s[start:end + 1]
+    try:
+        return json.loads(snippet)
+    except json.JSONDecodeError as first_err:
+        # Layer 4 — repair-parse. DeepSeek-v4-flash sometimes truncates
+        # mid-object on long outputs and the very last brace it emits
+        # is unbalanced; we look for the rightmost `}` whose prefix
+        # has matched braces and strip trailing commas.
+        repaired = _repair_truncated_json(snippet)
+        if repaired is None:
+            raise first_err
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            raise first_err
+
+
+def _repair_truncated_json(snippet: str) -> str | None:
+    """Best-effort repair of a JSON object that:
+      • has trailing commas before `]` or `}` (LLM artefact), and/or
+      • is truncated past the last balanced closing `}`.
+
+    Returns the repaired snippet, or None if no balanced prefix exists.
+    """
+    import re
+    # Strip trailing commas (`,]` and `,}`) — common LLM tic on lists.
+    cleaned = re.sub(r",(\s*[}\]])", r"\1", snippet)
+
+    # Walk forward, track depth; remember the position right after each
+    # closing `}` that brings depth back to 0. The rightmost such
+    # position is the largest balanced JSON object the LLM produced.
+    depth = 0
+    in_string = False
+    escape = False
+    last_balanced_end = -1
+    for i, ch in enumerate(cleaned):
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                last_balanced_end = i + 1
+            elif depth < 0:
+                return None
+    if last_balanced_end < 0:
+        return None
+    return cleaned[:last_balanced_end]
 
 
 # ─── Main run ──────────────────────────────────────────────────────────────────
@@ -315,14 +408,21 @@ def run(
             f"{resp.text[:200]}"
         )
 
+    # Always persist the LLM raw output — when JSON parsing fails
+    # the only way to debug is to look at what came back.
+    try:
+        (out_dir / "llm_raw.txt").write_text(resp.text or "", encoding="utf-8")
+    except Exception:
+        pass
+
     raw_data: dict | None = resp.json_data
     if raw_data is None:
-        # json_data=None means extract_json failed — try manual parse
         try:
             raw_data = _extract_json(resp.text)
         except Exception as e:
             raise RuntimeError(
                 f"Could not extract JSON from LLM response: {e}\n"
+                f"Raw saved to: {out_dir / 'llm_raw.txt'}\n"
                 f"Response preview: {resp.text[:500]}"
             ) from e
 
@@ -365,13 +465,20 @@ def run(
             allowed_tools=[],
         )
 
+        try:
+            (out_dir / "llm_raw_retry.txt").write_text(
+                retry_resp.text or "", encoding="utf-8"
+            )
+        except Exception:
+            pass
         retry_data = retry_resp.json_data
         if retry_data is None:
             try:
                 retry_data = _extract_json(retry_resp.text)
             except Exception as e2:
                 raise RuntimeError(
-                    f"Retry also failed to produce valid JSON: {e2}"
+                    f"Retry also failed to produce valid JSON: {e2}\n"
+                    f"Raw saved to: {out_dir / 'llm_raw_retry.txt'}"
                 ) from e2
 
         narrative_dict2 = retry_data.get("narrative", retry_data)

@@ -32,6 +32,69 @@ _MAX_PHRASE_DURATION_S = 3.5
 _VIDEO_EXTS = {".mp4", ".mov", ".webm", ".avi", ".mkv"}
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".gif"}
 
+# Aspect-ratio thresholds (asset_width / asset_height):
+#   ≤ 0.7  → already vertical or square-ish, fullscreen fits cleanly
+#   0.7-1.5 → moderately horizontal, fullscreen with smoother Ken Burns
+#   ≥ 1.5  → ultra-wide, fullscreen would crop ≥66% of the asset →
+#            drop to split_bottom (1080×960, ratio 1.125) so the asset
+#            shows in proportion in the lower half. The upper half can
+#            be a presenter / background.
+_RATIO_FULLSCREEN_OK_MAX = 1.5      # above this → split layout
+
+
+def _probe_asset_dimensions(path: str) -> tuple[int, int] | None:
+    """Best-effort (width, height) probe.
+
+    Tries ffprobe for any container (video AND image work); falls
+    back to PIL for image-only formats. None when both fail or the
+    file is missing — the v4 builder will probe again at build time.
+
+    Imports are lazy so unit tests stay free of ffprobe / Pillow.
+    """
+    if not os.path.exists(path):
+        return None
+    import shutil, subprocess
+    if shutil.which("ffprobe"):
+        try:
+            out = subprocess.check_output(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height",
+                 "-of", "csv=p=0", path],
+                timeout=8,
+            )
+            parts = out.decode().strip().split(",")
+            if len(parts) >= 2 and parts[0] and parts[1]:
+                return int(parts[0]), int(parts[1])
+        except Exception:
+            pass
+    try:
+        from PIL import Image                # type: ignore
+        with Image.open(path) as im:
+            return int(im.width), int(im.height)
+    except Exception:
+        return None
+
+
+def _layout_for_aspect(width: int, height: int, requested: str) -> str:
+    """Pick a v4-compatible layout based on the asset's aspect ratio.
+
+    Honours an explicit `requested` layout when it's one v4 actually
+    knows (`fullscreen` or `split_bottom`). Anything else (`split_top`,
+    `split_right`, …) is normalised — `split_top` becomes `split_bottom`
+    rather than silently dropping back to fullscreen, which would have
+    rendered a half-height card stretched across the full canvas.
+    """
+    if height <= 0:
+        return "fullscreen"
+    ratio = width / height
+    if requested == "split_top":
+        return "split_bottom"
+    if requested in ("fullscreen", "split_bottom"):
+        return requested
+    if ratio >= _RATIO_FULLSCREEN_OK_MAX:
+        return "split_bottom"
+    return "fullscreen"
+
 
 def _classify_asset(path: str) -> str:
     """Return the v4 beat type literal — `broll_image` or `broll_video`.
@@ -161,16 +224,28 @@ def _beat_for_broll(beat: dict, resolved: dict, *,
     """
     asset = resolved.get("abs_path") or ""
     btype = _classify_asset(asset)
+    requested_layout = resolved.get("layout") or "fullscreen"
+    dims = _probe_asset_dimensions(asset)
+    asset_w, asset_h = (dims if dims else (None, None))
+    layout = (_layout_for_aspect(asset_w, asset_h, requested_layout)
+              if dims else
+              ("split_bottom" if requested_layout == "split_top"
+               else (requested_layout if requested_layout in
+                     ("fullscreen", "split_bottom") else "fullscreen")))
     out = {
         "beat_id": beat["beat_id"] + (f"_{suffix}" if suffix else ""),
         "type": btype,
         "start_s": float(beat["start_s"]),
         "end_s": float(beat["end_s"]),
         "asset_path": asset,
-        "layout": resolved.get("layout") or "fullscreen",
+        "layout": layout,
         "motion": "ken_burns_in",
         "entry_anim": "fade",
     }
+    if asset_w is not None:
+        out["asset_width"] = asset_w
+    if asset_h is not None:
+        out["asset_height"] = asset_h
     if resolved.get("kind") == "video" or btype == "broll_video":
         out["asset_duration_us"] = int(
             (resolved.get("duration_s") or 0) * 1_000_000
