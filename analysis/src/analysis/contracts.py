@@ -59,6 +59,19 @@ class BrollHint(BaseModel):
         "logo_centered", "portrait", "drone_aerial", "abstract",
     ] | None = None
     duration_target_s: float | None = None
+    # v1.7 — designer-aware kinds. Only meaningful for the corresponding
+    # `type`; `acquisition.providers.hf` reads them to pick the right
+    # HyperFrames system prompt + layout. All optional so older analyses
+    # round-trip; the prompt template (capabilities catalog injection)
+    # promotes their use when emitting type=slide / mockup.
+    slide_kind: Literal[
+        "stat", "comparison", "list", "ranking", "progress",
+    ] | None = None
+    mockup_kind: Literal[
+        "quote", "thesis", "manifesto", "kicker",
+    ] | None = None
+    layout: Literal["fullscreen", "split_top", "split_bottom"] | None = None
+    palette: dict[str, str] | None = None
 
 
 class ArcAct(BaseModel):

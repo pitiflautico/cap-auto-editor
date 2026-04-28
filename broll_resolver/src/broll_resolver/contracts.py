@@ -65,6 +65,13 @@ class PendingHint(BaseModel):
     beat_start_s: float = 0.0
     beat_end_s: float = 0.0
     reason: str = "no local material"
+    # Designer-aware fields (preserved from analysis BrollHint so the
+    # acquisition.providers.hf bridge can pick the right hf_designer
+    # template + layout instead of falling back to defaults).
+    slide_kind: str | None = None
+    mockup_kind: str | None = None
+    layout: str | None = None
+    palette: dict[str, str] | None = None
 
 
 class BrollPlan(BaseModel):

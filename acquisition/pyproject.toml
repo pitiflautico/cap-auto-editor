@@ -13,6 +13,7 @@ dependencies = [
     "Pillow>=10.0",
     "python-dotenv>=1.0",
     "broll_resolver",
+    "hf_designer",
     "progress",
 ]
 

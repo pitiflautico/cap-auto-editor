@@ -12,7 +12,7 @@ from .contracts import (
     AcquisitionReport,
     ProviderName,
 )
-from .providers import pexels, text_card
+from .providers import hf, pexels, text_card
 
 log = logging.getLogger("acquisition.orchestrator")
 
@@ -260,14 +260,42 @@ def _resolve_one(hint: dict, slot_dir: Path) -> AcquisitionEntry:
 
     target_dur = float(hint.get("duration_target_s") or 4.0)
 
-    # ── Designed types: render the matching layout directly ──────────
-    if type_ in ("title", "slide", "mockup"):
-        as_video = (type_ == "slide")  # slide cards loop into a short clip
-        p, k, d = _try_text_card(hint, slot_dir,
-                                   as_video=as_video, attempts=attempts,
-                                   duration_s=target_dur)
-        abs_path, kind, duration = p, k, d
-        final_provider = "text_card"
+    # ── Designed types: hf_designer (LLM + HyperFrames) → text_card ─
+    # `title` joins slide/mockup here because it's a hero text card —
+    # the kicker/thesis layouts in the mockup_prompt cover that case
+    # animated. PIL text_card stays only as a deterministic fallback
+    # if the LLM/render path fails.
+    if type_ in ("slide", "mockup", "title"):
+        t0 = time.monotonic()
+        try:
+            mp4_path, hf_kind, hf_dur, designer_kind, _ = hf.acquire(
+                hint, slot_dir, name="card",
+            )
+            abs_path = mp4_path
+            kind = hf_kind                 # "video"
+            duration = hf_dur
+            final_provider = (
+                "hf_slide" if designer_kind == "slide" else "hf_mockup"
+            )
+            attempts.append(AcquisitionAttempt(
+                provider=final_provider, success=True,
+                duration_ms=int((time.monotonic() - t0) * 1000),
+            ))
+        except Exception as exc:
+            attempts.append(AcquisitionAttempt(
+                provider=("hf_slide" if type_ == "slide" else "hf_mockup"),
+                success=False,
+                duration_ms=int((time.monotonic() - t0) * 1000),
+                error=str(exc)[:200],
+            ))
+            log.warning("hf provider failed for %s/%s: %s — falling back to text_card",
+                         hint.get("beat_id"), type_, exc)
+            as_video = (type_ in ("slide", "title"))
+            p, k, d = _try_text_card(hint, slot_dir,
+                                       as_video=as_video, attempts=attempts,
+                                       duration_s=target_dur)
+            abs_path, kind, duration = p, k, d
+            final_provider = "text_card"
 
     # ── Real footage / stock cascade ────────────────────────────────
     elif type_ in ("video", "pexels", "photo", "web_capture"):

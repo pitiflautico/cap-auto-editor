@@ -152,6 +152,12 @@ def _resolve_one(
         description=hint.description,
         editorial_function=beat.editorial_function,
         beat_start_s=beat.start_s, beat_end_s=beat.end_s,
+        # Carry the designer-aware fields through so the hf provider
+        # in acquisition picks the right slide/mockup template.
+        slide_kind=getattr(hint, "slide_kind", None),
+        mockup_kind=getattr(hint, "mockup_kind", None),
+        layout=getattr(hint, "layout", None),
+        palette=getattr(hint, "palette", None),
         reason="no local material; needs acquisition (Pexels/yt-dlp/text_card)",
     )
 

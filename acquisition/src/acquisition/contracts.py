@@ -11,6 +11,7 @@ ProviderName = Literal[
     "pexels_video", "pexels_image",
     "yt_dlp_official",          # future
     "ken_burns",                # future
+    "hf_slide", "hf_mockup",    # LLM-driven cards rendered via HyperFrames
     "text_card",                # always-works fallback
 ]
 

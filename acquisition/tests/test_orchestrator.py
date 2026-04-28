@@ -23,6 +23,28 @@ def _hint(type_="video", subject="Foo", query="Foo demo",
     }
 
 
+def _patch_hf(monkeypatch, *, ok: bool = True, raise_exc: Exception | None = None):
+    """Replace `hf.acquire` so unit tests don't hit the real LLM/CLI.
+
+    When `ok=True` we write a fake mp4 under the slot dir and return the
+    tuple shape the orchestrator expects. When `raise_exc` is provided
+    the call raises (simulating designer/render failure), which the
+    orchestrator must catch to fall back to text_card.
+    """
+    from acquisition.providers import hf
+
+    def _fake_acquire(hint, slot_dir, *, name="card"):
+        if raise_exc is not None:
+            raise raise_exc
+        slot_dir.mkdir(parents=True, exist_ok=True)
+        mp4 = slot_dir / f"{name}.mp4"
+        mp4.write_bytes(b"FAKEMP4" + b"\x00" * 4096)
+        kind = "slide" if (hint.get("type") == "slide") else "mockup"
+        return mp4, "video", 5.0, kind, "fullscreen"
+
+    monkeypatch.setattr(hf, "acquire", _fake_acquire)
+
+
 def _patch_pexels(monkeypatch, *, image_ok=False, video_ok=False):
     from acquisition.providers import pexels
 
@@ -86,19 +108,37 @@ def test_photo_uses_pexels_image_then_text_card(tmp_path: Path, monkeypatch):
     assert e.kind == "image"
 
 
-def test_title_goes_directly_to_text_card(tmp_path: Path, monkeypatch):
-    _patch_pexels(monkeypatch)        # both off — should not be called
-    payload = {"pending": [_hint(type_="title", subject="Hero text")]}
+def test_title_routes_to_hf_designer_with_kicker_or_thesis(tmp_path: Path, monkeypatch):
+    """`type=title` is now an animated hero card via hf_designer (mockup
+    kind=kicker for ≤3 words, thesis for longer text). PIL text_card
+    is reserved as a fallback when the designer fails."""
+    _patch_pexels(monkeypatch)        # pexels off — must not be called
+    _patch_hf(monkeypatch, ok=True)
+    payload = {"pending": [_hint(type_="title", subject="Hero text overlay")]}
+    report = acquire(payload, tmp_path)
+    e = report.entries[0]
+    assert e.final_provider == "hf_mockup"
+    assert e.kind == "video"
+    # No Pexels attempts at all
+    assert all(a.provider != "pexels_image" and a.provider != "pexels_video"
+               for a in e.attempts)
+
+
+def test_title_falls_back_to_text_card_when_hf_fails(tmp_path: Path, monkeypatch):
+    """If hf_designer raises, title still degrades cleanly to PIL."""
+    _patch_pexels(monkeypatch)
+    _patch_hf(monkeypatch, raise_exc=RuntimeError("hyperframes timeout"))
+    payload = {"pending": [_hint(type_="title", subject="MiroFish")]}
     report = acquire(payload, tmp_path)
     e = report.entries[0]
     assert e.final_provider == "text_card"
-    assert e.kind in ("title", "video")
-    # No pexels attempts
-    assert all(a.provider == "text_card" for a in e.attempts)
+    providers = [a.provider for a in e.attempts]
+    assert "hf_mockup" in providers and "text_card" in providers
 
 
 def test_report_counts(tmp_path: Path, monkeypatch):
     _patch_pexels(monkeypatch, image_ok=True, video_ok=True)
+    _patch_hf(monkeypatch, ok=True)
     payload = {"pending": [
         _hint(type_="video", beat_id="b001", hi=0),
         _hint(type_="photo", beat_id="b002", hi=0),
@@ -109,7 +149,8 @@ def test_report_counts(tmp_path: Path, monkeypatch):
     assert report.acquired_count == 3
     assert report.provider_counts.get("pexels_video") == 1
     assert report.provider_counts.get("pexels_image") == 1
-    assert report.provider_counts.get("text_card") == 1
+    # title now flows through hf_designer (mockup kicker/thesis layout)
+    assert report.provider_counts.get("hf_mockup") == 1
 
 
 def test_query_composition_priorities():
@@ -159,41 +200,70 @@ def test_static_shot_type_uses_image_directly(tmp_path: Path, monkeypatch):
     assert all(a.provider != "pexels_video" for a in e.attempts)
 
 
-def test_mockup_renders_designed_card_no_pexels(tmp_path: Path, monkeypatch):
-    """type=mockup is a *designed* asset — it must render via text_card
-    (mockup layout placeholder until phase 13) and never call Pexels.
+def test_mockup_routes_to_hf_designer(tmp_path: Path, monkeypatch):
+    """type=mockup goes through the hf_designer (LLM + HyperFrames)
+    cascade. Never touches Pexels even if the shot_type would have
+    triggered a video search.
     """
     _patch_pexels(monkeypatch, image_ok=True, video_ok=True)
+    _patch_hf(monkeypatch, ok=True)
     h = _hint(type_="mockup", subject="MiroFish UI")
-    h["shot_type"] = "screen_recording"        # would have triggered video
+    h["shot_type"] = "screen_recording"
+    h["mockup_kind"] = "thesis"
     report = acquire({"pending": [h]}, tmp_path)
     e = report.entries[0]
-    assert e.final_provider == "text_card"
-    assert all(a.provider == "text_card" for a in e.attempts)
+    assert e.final_provider == "hf_mockup"
+    assert e.kind == "video"
     assert e.abs_path and Path(e.abs_path).exists()
+    # Only the hf attempt was logged — no Pexels touched.
+    assert all(a.provider in ("hf_slide", "hf_mockup") for a in e.attempts)
 
 
-def test_slide_renders_designed_card_no_pexels(tmp_path: Path, monkeypatch):
-    """type=slide is also designed — text_card slide layout, no Pexels."""
+def test_slide_routes_to_hf_designer(tmp_path: Path, monkeypatch):
+    """type=slide → hf_designer slide kind, never Pexels."""
     _patch_pexels(monkeypatch, image_ok=True, video_ok=True)
+    _patch_hf(monkeypatch, ok=True)
     h = _hint(type_="slide", subject="Highlights")
+    h["slide_kind"] = "list"
     h["queries_fallback"] = ["one", "two", "three"]
     report = acquire({"pending": [h]}, tmp_path)
     e = report.entries[0]
+    assert e.final_provider == "hf_slide"
+    assert e.kind == "video"
+
+
+def test_designed_type_falls_back_to_text_card_on_hf_failure(tmp_path: Path, monkeypatch):
+    """If the designer/render raises, the orchestrator must catch it
+    and degrade to text_card so the slot is never empty.
+    """
+    _patch_pexels(monkeypatch, image_ok=True, video_ok=True)
+    _patch_hf(monkeypatch, raise_exc=RuntimeError("hyperframes timeout"))
+    h = _hint(type_="mockup", subject="Foo")
+    report = acquire({"pending": [h]}, tmp_path)
+    e = report.entries[0]
     assert e.final_provider == "text_card"
-    assert all(a.provider == "text_card" for a in e.attempts)
+    # Both attempts logged: the failed hf one and the successful text_card.
+    providers = [a.provider for a in e.attempts]
+    assert "hf_mockup" in providers
+    assert "text_card" in providers
+    # The failed hf attempt carries the error message.
+    hf_attempt = next(a for a in e.attempts if a.provider == "hf_mockup")
+    assert hf_attempt.success is False
+    assert "timeout" in (hf_attempt.error or "")
 
 
 def test_title_card_subtext_from_description(tmp_path: Path, monkeypatch):
-    """A title card pulls the hero from `subject` and the secondary
-    line from the hint's `description`.
+    """A title card now lands on hf_designer (mockup layout). The
+    description carries through the brief; PIL text_card stays as a
+    fallback only.
     """
-    _patch_pexels(monkeypatch)        # pexels off — should not be touched
+    _patch_pexels(monkeypatch)
+    _patch_hf(monkeypatch, ok=True)
     h = _hint(type_="title", subject="MiroFish Built in 10 Days",
               description="Open-source predictive simulation engine")
     report = acquire({"pending": [h]}, tmp_path)
     e = report.entries[0]
-    assert e.final_provider == "text_card"
+    assert e.final_provider == "hf_mockup"
     assert e.abs_path and Path(e.abs_path).exists()
 
 
